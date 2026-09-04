@@ -2,7 +2,7 @@
 {FILENAME("meas_", {FIELD("MEAS", "NAME")}, "_", POL1, ".csv")}
 {GROUPBY(POL1, FREQ, CHANNEL, BEAM)}
 {DELIMITER(";")}
-{ENCODING("UTF-8")}
+{ENCODING("UTF-8-BOM")}
 [/MDHEADER]
 Измерение;{FIELD("MEAS", "NAME")}
 Уровень;{FORMAT("#.00 дБм", {FIELD("MEAS", "POW")})}
