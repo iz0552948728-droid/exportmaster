@@ -1,0 +1,20 @@
+{
+  "profiles": {
+    "Пример: заглушки-описания": {
+      "commandName": "Project",
+      "commandLineArgs": "/md samples/templates/example.md /target out /id 1",
+      "workingDirectory": "..\\..",
+      "comment": "Рабочий каталог — корень решения, поэтому пути в аргументах относительные."
+    },
+    "Пример: правдоподобные значения": {
+      "commandName": "Project",
+      "commandLineArgs": "/md samples/templates/example.md /target out /id 2 /stub sample",
+      "workingDirectory": "..\\.."
+    },
+    "Справка по ключам": {
+      "commandName": "Project",
+      "commandLineArgs": "",
+      "workingDirectory": "..\\.."
+    }
+  }
+}
