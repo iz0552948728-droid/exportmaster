@@ -13,27 +13,27 @@ public class DimensionsTests
     [InlineData(Dimensions.POS, 6)]
     [InlineData(Dimensions.SLIDER, 7)]
     [InlineData(Dimensions.POL2, 8)]
-    public void Значение_совпадает_с_байтом_в_файле(Dimensions dimension, byte expected)
+    public void ValueMatchesByteInDataFile(Dimensions dimension, byte expected)
     {
         Assert.Equal(expected, (byte)dimension);
     }
 
     [Fact]
-    public void Перечисление_однобайтное()
+    public void UnderlyingTypeIsSingleByte()
     {
         // Размер важен: тип значения занимает в файле данных ровно один байт.
         Assert.Equal(typeof(byte), Enum.GetUnderlyingType(typeof(Dimensions)));
     }
 
     [Fact]
-    public void Ноль_не_является_допустимой_осью()
+    public void ZeroIsNotAValidAxis()
     {
         // Защита от возврата к нумерации с нуля: значения 0 в формате нет.
         Assert.False(Enum.IsDefined(typeof(Dimensions), (byte)0));
     }
 
     [Fact]
-    public void Определены_все_восемь_осей()
+    public void AllEightAxesAreDefined()
     {
         Assert.Equal(8, Enum.GetValues<Dimensions>().Length);
     }
