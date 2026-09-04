@@ -14,9 +14,11 @@ public sealed record Diagnostic(
     /// <summary>Строка вида <c>(14,23): текст сообщения</c>.</summary>
     public override string ToString() => $"{Span}: {Message}";
 
-    internal static Diagnostic Error(DiagnosticCode code, string message, SourceSpan span) =>
+    /// <summary>Замечание, делающее шаблон непригодным.</summary>
+    public static Diagnostic Error(DiagnosticCode code, string message, SourceSpan span) =>
         new(DiagnosticSeverity.Error, code, message, span);
 
-    internal static Diagnostic Warning(DiagnosticCode code, string message, SourceSpan span) =>
+    /// <summary>Замечание, не мешающее сформировать файл.</summary>
+    public static Diagnostic Warning(DiagnosticCode code, string message, SourceSpan span) =>
         new(DiagnosticSeverity.Warning, code, message, span);
 }
