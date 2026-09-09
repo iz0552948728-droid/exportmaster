@@ -83,15 +83,24 @@ public class RenderingTests
         }
 
         [Fact]
-        public void UsesDelimiterFromHeader()
+        public void UsesDelimiterFromFifthArgument()
         {
-            var content = Render(
-                "{TABLE(\"FREQ\",\"DATA\",\"AMP\",\"0.00\")}",
-                StubStyle.Descriptive,
-                "[MDHEADER]\n{FILENAME(\"a.csv\")}\n{DELIMITER(\"|\")}\n{NEWLINE(\"LF\")}\n[/MDHEADER]\n");
+            // Разделитель задаётся в каждой таблице: у разных таблиц одного файла
+            // он может различаться, поэтому в заголовок шаблона его не выносят.
+            var content = Render("{TABLE(\"FREQ\",\"DATA\",\"AMP\",\"0.00\",\"|\")}");
 
             Assert.Contains('|', content);
             Assert.DoesNotContain(';', content);
+        }
+
+        [Fact]
+        public void FifthArgumentIsRequired()
+        {
+            // Молча подставить точку с запятой опаснее ошибки: файл получился бы
+            // правдоподобным, но с чужим разделителем.
+            var diagnostics = RenderWithDiagnostics("{TABLE(\"FREQ\",\"DATA\",\"AMP\",\"0.00\")}");
+
+            Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         }
 
         [Fact]
@@ -102,11 +111,9 @@ public class RenderingTests
         }
 
         [Fact]
-        public void CornerCellComesFromFifthArgument()
+        public void CornerCellIsEmpty()
         {
-            var content = Render("{TABLE(\"FREQ\",\"DATA\",\"AMP\",\"0.00\",\"Гц\")}");
-
-            Assert.StartsWith("Гц;", content, StringComparison.Ordinal);
+            Assert.StartsWith(";", RenderTable(), StringComparison.Ordinal);
         }
 
         [Fact]
@@ -123,7 +130,20 @@ public class RenderingTests
         }
 
         private static string RenderTable(StubStyle style = StubStyle.Descriptive) =>
-            Render("{TABLE(\"FREQ\",\"DATA\",\"AMP\",\"0.00\")}", style);
+            Render("{TABLE(\"FREQ\",\"DATA\",\"AMP\",\"0.00\",\";\")}", style);
+    }
+
+    private static List<Diagnostic> RenderWithDiagnostics(string body)
+    {
+        var parsed = TemplateParser.Parse(Header + body);
+        Assert.False(parsed.HasErrors);
+
+        var diagnostics = new List<Diagnostic>();
+        var settings = HeaderSettings.Parse(parsed.Document.Header, diagnostics);
+        var renderer = new TemplateRenderer(new StubValueResolver(StubStyle.Descriptive));
+
+        renderer.Render(parsed.Document.Body, new RenderContext(settings.Output), diagnostics);
+        return diagnostics;
     }
 
     private static string Render(string body, StubStyle style = StubStyle.Descriptive, string? header = null)

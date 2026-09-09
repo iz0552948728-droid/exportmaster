@@ -23,4 +23,11 @@ public sealed class RenderContext
 
     /// <summary>Число строк в заглушке табличной подстановки.</summary>
     public int StubTableRows { get; init; } = 4;
+
+    /// <summary>
+    /// Собирать заглушки в короткой форме. Включается при формировании имени файла:
+    /// полная запись поля со скобками и кавычками даёт нечитаемое имя, а часть
+    /// её символов вдобавок недопустима в именах файлов Windows.
+    /// </summary>
+    public bool CompactStubs { get; init; }
 }

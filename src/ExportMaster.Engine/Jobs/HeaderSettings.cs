@@ -38,7 +38,6 @@ public sealed class HeaderSettings
         CallNode? fileName = null;
         var groupBy = new List<Dimensions>();
 
-        var delimiter = ";";
         var decimalSeparator = ".";
         var newLine = Environment.NewLine;
         Encoding encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
@@ -56,7 +55,13 @@ public sealed class HeaderSettings
                     break;
 
                 case "DELIMITER":
-                    delimiter = ReadString(field, diagnostics) ?? delimiter;
+                    // Разделитель ячеек переехал в пятый аргумент TABLE: у разных
+                    // таблиц одного файла он может различаться.
+                    diagnostics.Add(Diagnostic.Error(
+                        DiagnosticCode.ExpectedFieldName,
+                        "DELIMITER больше не является директивой заголовка: "
+                            + "разделитель ячеек задаётся пятым аргументом поля TABLE.",
+                        field.Span));
                     break;
 
                 case "DECIMAL":
@@ -92,7 +97,6 @@ public sealed class HeaderSettings
 
         var output = new OutputSettings
         {
-            Delimiter = delimiter,
             DecimalSeparator = decimalSeparator,
             NewLine = newLine,
             Encoding = encoding,
@@ -111,6 +115,15 @@ public sealed class HeaderSettings
             return string.Empty;
         }
 
+        // Имя файла собирается короткими заглушками: полная запись поля
+        // со скобками и кавычками нечитаема, а кавычки Windows в именах не допускает.
+        var compact = new RenderContext(context.Settings)
+        {
+            StubTableColumns = context.StubTableColumns,
+            StubTableRows = context.StubTableRows,
+            CompactStubs = true,
+        };
+
         var builder = new StringBuilder();
 
         foreach (var argument in FileName.Arguments)
@@ -120,7 +133,7 @@ public sealed class HeaderSettings
                 StringArgument text => text.Value,
                 NumberArgument number => number.Text,
                 IdentifierArgument identifier => identifier.Name,
-                CallArgument call => renderer.RenderCall(call.Call, context, diagnostics),
+                CallArgument call => renderer.RenderCall(call.Call, compact, diagnostics),
                 _ => string.Empty,
             });
         }

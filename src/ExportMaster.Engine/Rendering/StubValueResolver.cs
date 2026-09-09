@@ -27,6 +27,11 @@ public sealed class StubValueResolver : IValueResolver
         ArgumentNullException.ThrowIfNull(call);
         ArgumentNullException.ThrowIfNull(context);
 
+        if (context.CompactStubs)
+        {
+            return ResolvedValue.FromText(Compact(call));
+        }
+
         var description = $"{Open}{CallText.Format(call)}{Close}";
 
         if (Style == StubStyle.Descriptive)
@@ -64,6 +69,35 @@ public sealed class StubValueResolver : IValueResolver
         // вычитание пошло бы в беззнаковых числах и завернулось при малых значениях.
         var scaled = (int)(hash % 20000);
         return (scaled - 10000) / 100.0;
+    }
+
+    /// <summary>
+    /// Короткая заглушка для имени файла: имена из аргументов через точку.
+    /// FIELD("MEAS", "NAME") превращается в MEAS.NAME, GROUPVALUE("POL1") — в POL1.
+    /// </summary>
+    private static string Compact(CallNode call)
+    {
+        var parts = new List<string>();
+
+        foreach (var argument in call.Arguments)
+        {
+            switch (argument)
+            {
+                case StringArgument text when !string.IsNullOrWhiteSpace(text.Value):
+                    parts.Add(text.Value);
+                    break;
+
+                case IdentifierArgument identifier:
+                    parts.Add(identifier.Name);
+                    break;
+
+                case CallArgument nested:
+                    parts.Add(Compact(nested.Call));
+                    break;
+            }
+        }
+
+        return parts.Count == 0 ? call.Name : string.Join('.', parts);
     }
 
     /// <summary>Заглушка заголовка оси: имя оси и порядковый номер значения.</summary>

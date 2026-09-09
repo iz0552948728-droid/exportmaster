@@ -129,12 +129,12 @@ public sealed class TemplateRenderer
     /// </summary>
     private string RenderTable(CallNode call, RenderContext context, List<Diagnostic> diagnostics)
     {
-        if (call.Arguments.Count is < 4 or > 5)
+        if (call.Arguments.Count != 5)
         {
             diagnostics.Add(Diagnostic.Error(
                 DiagnosticCode.ExpectedArgument,
-                $"Поле {TableField} принимает от четырёх до пяти аргументов: "
-                    + "заголовки колонок, заголовки строк, функцию данных, формат и, необязательно, угловую ячейку.",
+                $"Поле {TableField} принимает пять аргументов: заголовки колонок, "
+                    + "заголовки строк, функцию данных, формат и разделитель ячеек.",
                 call.Span));
 
             return _resolver.Resolve(call, context).Text;
@@ -142,14 +142,16 @@ public sealed class TemplateRenderer
 
         var columnAxis = ArgumentText(call.Arguments[0]);
         var rowAxis = ArgumentText(call.Arguments[1]);
-        var corner = call.Arguments.Count == 5 ? ArgumentText(call.Arguments[4]) : string.Empty;
 
-        var delimiter = context.Settings.Delimiter;
+        // Разделитель ячеек задаётся пятым аргументом: у разных таблиц одного
+        // файла он может различаться, поэтому в заголовок шаблона его не выносят.
+        var delimiter = ArgumentText(call.Arguments[4]);
+
         var builder = new StringBuilder();
 
         // Строка заголовков: значения оси колонок приходят из данных, вписать их
-        // в шаблон вручную нельзя, поэтому их печатает сама таблица.
-        builder.Append(corner);
+        // в шаблон вручную нельзя, поэтому их печатает сама таблица. Ячейка на
+        // пересечении заголовков пуста.
         for (var column = 1; column <= context.StubTableColumns; column++)
         {
             builder.Append(delimiter).Append(Header(columnAxis, column, context));

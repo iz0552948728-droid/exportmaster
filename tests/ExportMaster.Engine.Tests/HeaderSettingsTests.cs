@@ -15,7 +15,6 @@ public class HeaderSettingsTests
         var (settings, diagnostics) = Parse("{FILENAME(\"a.csv\")}");
 
         Assert.Empty(diagnostics);
-        Assert.Equal(";", settings.Output.Delimiter);
         Assert.Equal(".", settings.Output.DecimalSeparator);
         Assert.Equal(Environment.NewLine, settings.Output.NewLine);
     }
@@ -83,6 +82,25 @@ public class HeaderSettingsTests
         var (_, diagnostics) = Parse("{FILENAME(\"a.csv\")}{SOMETHING(\"x\")}");
 
         Assert.All(diagnostics, d => Assert.Equal(DiagnosticSeverity.Warning, d.Severity));
+    }
+
+    [Fact]
+    public void DelimiterIsNoLongerAHeaderDirective()
+    {
+        // Разделитель ячеек переехал в пятый аргумент TABLE: у разных таблиц
+        // одного файла он может различаться.
+        var (_, diagnostics) = Parse("{FILENAME(\"a.csv\")}{DELIMITER(\";\")}");
+
+        Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void GroupByAcceptsAxisNamesAsStrings()
+    {
+        var (settings, diagnostics) = Parse("{FILENAME(\"a.csv\")}{GROUPBY(\"POL1\",\"SLIDER\")}");
+
+        Assert.Empty(diagnostics);
+        Assert.Equal(new[] { Dimensions.POL1, Dimensions.SLIDER }, settings.GroupBy);
     }
 
     [Fact]

@@ -8,9 +8,6 @@ namespace ExportMaster.Engine.Jobs;
 /// </summary>
 public sealed class OutputSettings
 {
-    /// <summary>Разделитель ячеек табличной подстановки.</summary>
-    public string Delimiter { get; init; } = ";";
-
     /// <summary>
     /// Десятичный разделитель. По умолчанию точка и намеренно не берётся из локали
     /// системы: иначе одно задание на двух машинах дало бы разные файлы, а
