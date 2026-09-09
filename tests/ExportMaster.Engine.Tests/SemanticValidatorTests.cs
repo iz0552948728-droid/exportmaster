@@ -4,8 +4,8 @@ using ExportMaster.Template.Parsing;
 
 namespace ExportMaster.Engine.Tests;
 
-/// <summary>Проверка поля GROUPVALUE по списку осей отбора данных.</summary>
-public class GroupValueValidatorTests
+/// <summary>Проверки, выполнимые до чтения файлов данных.</summary>
+public class SemanticValidatorTests
 {
     [Fact]
     public void AxisFromGroupByIsAccepted()
@@ -57,6 +57,52 @@ public class GroupValueValidatorTests
         Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
+    /// <summary>Оси таблицы против осей разбиения.</summary>
+    public class TableAxes
+    {
+        [Fact]
+        public void AxesLeftInSliceAreAccepted()
+        {
+            // Шесть измерений, четыре ушли в GROUPBY, в вырезке остались FREQ и DATA.
+            var diagnostics = Validate(
+                "{FILENAME(\"a.txt\")}\n{GROUPBY(\"POL1\",\"SLIDER\",\"CHANNEL\",\"BEAM\")}",
+                "{TABLE(\"FREQ\",\"DATA\",\"AMP\",\"0.00\",\";\")}");
+
+            Assert.Empty(diagnostics);
+        }
+
+        [Fact]
+        public void GroupedAxisCannotBeTableAxis()
+        {
+            // Ось разбиения в вырезке зафиксирована — колонок по ней быть не может.
+            var diagnostics = Validate(
+                "{FILENAME(\"a.txt\")}\n{GROUPBY(\"FREQ\",\"POL1\")}",
+                "{TABLE(\"FREQ\",\"DATA\",\"AMP\",\"0.00\",\";\")}");
+
+            Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        }
+
+        [Fact]
+        public void RowsAndColumnsMustDiffer()
+        {
+            var diagnostics = Validate(
+                "{FILENAME(\"a.txt\")}\n{GROUPBY(\"POL1\")}",
+                "{TABLE(\"FREQ\",\"FREQ\",\"AMP\",\"0.00\",\";\")}");
+
+            Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        }
+
+        [Fact]
+        public void UnknownTableAxisIsRejected()
+        {
+            var diagnostics = Validate(
+                "{FILENAME(\"a.txt\")}\n{GROUPBY(\"POL1\")}",
+                "{TABLE(\"FREQENCY\",\"DATA\",\"AMP\",\"0.00\",\";\")}");
+
+            Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        }
+    }
+
     private static List<Diagnostic> Validate(string header, string body)
     {
         var parsed = TemplateParser.Parse($"[MDHEADER]\n{header}\n[/MDHEADER]\n{body}");
@@ -66,7 +112,7 @@ public class GroupValueValidatorTests
         var settings = HeaderSettings.Parse(parsed.Document.Header, diagnostics);
         Assert.Empty(diagnostics);
 
-        GroupValueValidator.Validate(parsed.Document, settings.GroupBy, diagnostics);
+        SemanticValidator.Validate(parsed.Document, settings.GroupBy, diagnostics);
         return diagnostics;
     }
 }

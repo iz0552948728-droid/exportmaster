@@ -40,7 +40,7 @@ public sealed class FormattingService
         }
 
         var header = HeaderSettings.Parse(parsed.Document.Header, diagnostics);
-        GroupValueValidator.Validate(parsed.Document, header.GroupBy, diagnostics);
+        SemanticValidator.Validate(parsed.Document, header.GroupBy, diagnostics);
 
         if (diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
         {
