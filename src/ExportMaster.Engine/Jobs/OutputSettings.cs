@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using ExportMaster.Core;
 
 namespace ExportMaster.Engine.Jobs;
 
@@ -17,6 +18,13 @@ public sealed class OutputSettings
 
     /// <summary>Перевод строки. По умолчанию — принятый в операционной системе.</summary>
     public string NewLine { get; init; } = Environment.NewLine;
+
+    /// <summary>
+    /// Число знаков после запятой для значений отдельных осей, заданное директивами
+    /// <c>AXISFORMAT</c>. Ось, которой здесь нет, выводится так, как записана в файле.
+    /// </summary>
+    public IReadOnlyDictionary<Dimensions, string> AxisFormats { get; init; } =
+        new Dictionary<Dimensions, string>();
 
     /// <summary>Кодировка выходного файла. По умолчанию UTF-8 без BOM.</summary>
     public Encoding Encoding { get; init; } = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);

@@ -104,6 +104,23 @@ public class HeaderSettingsTests
     }
 
     [Fact]
+    public void AxisFormatDirectiveIsRead()
+    {
+        var (settings, diagnostics) = Parse("{FILENAME(\"a.csv\")}{AXISFORMAT(\"FREQ\",\"0.00\")}");
+
+        Assert.Empty(diagnostics);
+        Assert.Equal("0.00", settings.Output.AxisFormats[Dimensions.FREQ]);
+    }
+
+    [Fact]
+    public void AxisFormatWithUnknownAxisIsRejected()
+    {
+        var (_, diagnostics) = Parse("{FILENAME(\"a.csv\")}{AXISFORMAT(\"FREQENCY\",\"0.00\")}");
+
+        Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
     public void UnknownNewLineKindIsRejected()
     {
         var (_, diagnostics) = Parse("{FILENAME(\"a.csv\")}{NEWLINE(\"CR\")}");

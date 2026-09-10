@@ -42,21 +42,21 @@ public class EndToEndTests : IDisposable
         Assert.All(result.Lines, line => Assert.Equal(0, line.Code));
 
         Assert.Equal(
-            new[] { "m_2725000000.txt", "m_2775000000.txt", "m_2825000000.txt" },
+            new[] { "m_2.725GHz.txt", "m_2.775GHz.txt", "m_2.825GHz.txt" },
             result.Lines.Select(line => line.File));
     }
 
     [Fact]
     public void KeyNamesTheCurrentValueOfTheGroupAxis()
     {
-        Assert.Equal("FREQ=2725000000", Run().Lines[0].Key);
+        Assert.Equal("FREQ=2.725GHz", Run().Lines[0].Key);
     }
 
     [Fact]
     public void TableHasOneColumnPerColumnAxisPointAndOneRowPerRowAxisPoint()
     {
         Run();
-        var lines = File.ReadAllLines(Path.Combine(_target, "m_2725000000.txt"));
+        var lines = File.ReadAllLines(Path.Combine(_target, "m_2.725GHz.txt"));
 
         // POS даёт 53 колонки, DATA — 61 строку; плюс строка и колонка заголовков.
         Assert.Equal(62, lines.Length);
@@ -67,7 +67,7 @@ public class EndToEndTests : IDisposable
     public void HeadersCarryAxisValuesFromTheFile()
     {
         Run();
-        var lines = File.ReadAllLines(Path.Combine(_target, "m_2725000000.txt"));
+        var lines = File.ReadAllLines(Path.Combine(_target, "m_2.725GHz.txt"));
 
         var columns = lines[0].Split(';');
         Assert.Equal(string.Empty, columns[0]);
@@ -79,10 +79,10 @@ public class EndToEndTests : IDisposable
 
     [Theory]
     // Значения посчитаны из байтов образца независимо: 20*log10(|z|).
-    [InlineData("m_2725000000.txt", 1, 1, -63.19)]
-    [InlineData("m_2725000000.txt", 1, 2, -61.06)]
-    [InlineData("m_2775000000.txt", 1, 1, -62.60)]
-    [InlineData("m_2825000000.txt", 1, 1, -58.14)]
+    [InlineData("m_2.725GHz.txt", 1, 1, -63.19)]
+    [InlineData("m_2.725GHz.txt", 1, 2, -61.06)]
+    [InlineData("m_2.775GHz.txt", 1, 1, -62.60)]
+    [InlineData("m_2.825GHz.txt", 1, 1, -58.14)]
     public void CellsMatchIndependentlyComputedAmplitudes(string file, int row, int column, double expected)
     {
         Run();

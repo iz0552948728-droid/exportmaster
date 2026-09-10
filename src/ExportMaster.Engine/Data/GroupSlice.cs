@@ -1,4 +1,5 @@
 using ExportMaster.Core;
+using ExportMaster.Engine.Rendering;
 using ExportMaster.Formats;
 
 namespace ExportMaster.Engine.Data;
@@ -39,8 +40,12 @@ public sealed class GroupSlice
         return -1;
     }
 
-    /// <summary>Текущее значение оси разбиения в виде текста.</summary>
-    public string? ValueOf(Dimensions axis)
+    /// <summary>
+    /// Описатель оси разбиения и индекс, на котором она зафиксирована.
+    /// Текстовый вид значения делает <see cref="Rendering.AxisValueFormatter"/>:
+    /// как показать частоту, решает шаблон, а не вырезка.
+    /// </summary>
+    public (AxisDescriptor Descriptor, int Index)? DescriptorOf(Dimensions axis)
     {
         var index = IndexOf(axis);
 
@@ -50,13 +55,23 @@ public sealed class GroupSlice
         }
 
         var position = Matrix.IndexOfAxis(axis);
-        return position < 0 ? null : Matrix.Axes[position].TextAt(index);
+        return position < 0 ? null : (Matrix.Axes[position], index);
     }
 
     /// <summary>
     /// Ключ результирующего файла: значения осей разбиения (ТЗ п. 4.3.3, поле 3).
     /// </summary>
-    public string Key => string.Join(';', GroupAxes.Select(axis => $"{axis}={ValueOf(axis)}"));
+    public string Key(AxisValueFormatter formatter)
+    {
+        ArgumentNullException.ThrowIfNull(formatter);
+
+        return string.Join(';', GroupAxes.Select(axis =>
+        {
+            var descriptor = DescriptorOf(axis);
+            var value = descriptor is null ? string.Empty : formatter.Format(descriptor.Value.Descriptor, descriptor.Value.Index);
+            return $"{axis}={value}";
+        }));
+    }
 
     /// <summary>
     /// Полный набор индексов для обращения к матрице: оси разбиения берутся из

@@ -39,6 +39,7 @@ public sealed class HeaderSettings
         var groupBy = new List<Dimensions>();
 
         var decimalSeparator = ".";
+        var axisFormats = new Dictionary<Dimensions, string>();
         var newLine = Environment.NewLine;
         Encoding encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
@@ -72,6 +73,10 @@ public sealed class HeaderSettings
                     newLine = ReadNewLine(field, diagnostics) ?? newLine;
                     break;
 
+                case "AXISFORMAT":
+                    ReadAxisFormat(field, axisFormats, diagnostics);
+                    break;
+
                 case "ENCODING":
                     encoding = ReadEncoding(field, diagnostics) ?? encoding;
                     break;
@@ -98,6 +103,7 @@ public sealed class HeaderSettings
         var output = new OutputSettings
         {
             DecimalSeparator = decimalSeparator,
+            AxisFormats = axisFormats,
             NewLine = newLine,
             Encoding = encoding,
         };
@@ -205,6 +211,56 @@ public sealed class HeaderSettings
 
             target.Add(dimension);
         }
+    }
+
+    /// <summary>
+    /// <c>AXISFORMAT(&lt;ось&gt;, &lt;формат&gt;)</c> — сколько знаков после запятой
+    /// выводить для значений этой оси.
+    /// </summary>
+    private static void ReadAxisFormat(
+        CallNode field,
+        Dictionary<Dimensions, string> target,
+        List<Diagnostic> diagnostics)
+    {
+        if (field.Arguments.Count != 2)
+        {
+            diagnostics.Add(Diagnostic.Error(
+                DiagnosticCode.ExpectedArgument,
+                "Директива AXISFORMAT принимает имя оси и строку формата.",
+                field.Span));
+
+            return;
+        }
+
+        var name = field.Arguments[0] switch
+        {
+            StringArgument text => text.Value,
+            IdentifierArgument identifier => identifier.Name,
+            _ => null,
+        };
+
+        if (name is null || !Enum.TryParse<Dimensions>(name, ignoreCase: false, out var axis))
+        {
+            diagnostics.Add(Diagnostic.Error(
+                DiagnosticCode.ExpectedArgument,
+                $"Первым аргументом AXISFORMAT должно быть имя оси. Допустимы: "
+                    + $"{string.Join(", ", Enum.GetNames<Dimensions>())}.",
+                field.Arguments[0].Span));
+
+            return;
+        }
+
+        if (field.Arguments[1] is not StringArgument format)
+        {
+            diagnostics.Add(Diagnostic.Error(
+                DiagnosticCode.ExpectedArgument,
+                "Вторым аргументом AXISFORMAT должна быть строка формата, например \"0.000\".",
+                field.Arguments[1].Span));
+
+            return;
+        }
+
+        target[axis] = format.Value;
     }
 
     private static string? ReadString(CallNode field, List<Diagnostic> diagnostics)

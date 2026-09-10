@@ -108,7 +108,8 @@ public sealed class FormattingService
     {
         var renderer = new TemplateRenderer(resolver);
         var context = new RenderContext(header.Output) { Slice = slice };
-        var key = slice?.Key ?? string.Join(';', header.GroupBy.Select(axis => $"{axis}=*"));
+        var key = slice?.Key(new AxisValueFormatter(header.Output))
+            ?? string.Join(';', header.GroupBy.Select(axis => $"{axis}=*"));
 
         var local = new List<Diagnostic>();
         var fileName = header.BuildFileName(renderer, context, local);

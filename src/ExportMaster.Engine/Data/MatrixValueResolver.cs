@@ -57,7 +57,10 @@ public sealed class MatrixValueResolver : IValueResolver
         ArgumentNullException.ThrowIfNull(context);
 
         var position = context.Slice?.Matrix.IndexOfAxis(axis) ?? -1;
-        return position < 0 ? string.Empty : context.Slice!.Matrix.Axes[position].TextAt(index);
+
+        return position < 0
+            ? string.Empty
+            : new AxisValueFormatter(context.Settings).Format(context.Slice!.Matrix.Axes[position], index);
     }
 
     public ResolvedValue Cell(
@@ -90,15 +93,16 @@ public sealed class MatrixValueResolver : IValueResolver
             return Unresolved(call, context);
         }
 
-        var value = context.Slice?.ValueOf(axis.Value);
+        var descriptor = context.Slice?.DescriptorOf(axis.Value);
 
-        if (value is null)
+        if (descriptor is null)
         {
             Report(call, $"Ось {axis} не является осью разбиения, текущего значения у неё нет.");
             return Unresolved(call, context);
         }
 
-        return ResolvedValue.FromText(value);
+        var formatter = new AxisValueFormatter(context.Settings);
+        return ResolvedValue.FromText(formatter.Format(descriptor.Value.Descriptor, descriptor.Value.Index));
     }
 
     /// <summary>
