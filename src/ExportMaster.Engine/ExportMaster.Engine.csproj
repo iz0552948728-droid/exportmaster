@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ExportMaster.Template\ExportMaster.Template.csproj" />
+    <ProjectReference Include="..\ExportMaster.Formats\ExportMaster.Formats.csproj" />
   </ItemGroup>
 
   <ItemGroup>
