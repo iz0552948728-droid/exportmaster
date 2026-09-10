@@ -20,6 +20,41 @@ public static class CallText
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Короткая запись поля для имени файла: имена из аргументов через точку.
+    /// <c>FIELD("MEAS", "NAME")</c> превращается в <c>MEAS.NAME</c>.
+    /// </summary>
+    /// <remarks>
+    /// Полная запись со скобками и кавычками даёт нечитаемое имя, а кавычки
+    /// в именах файлов Windows не допускает вовсе.
+    /// </remarks>
+    public static string Compact(CallNode call)
+    {
+        ArgumentNullException.ThrowIfNull(call);
+
+        var parts = new List<string>();
+
+        foreach (var argument in call.Arguments)
+        {
+            switch (argument)
+            {
+                case StringArgument text when !string.IsNullOrWhiteSpace(text.Value):
+                    parts.Add(text.Value);
+                    break;
+
+                case IdentifierArgument identifier:
+                    parts.Add(identifier.Name);
+                    break;
+
+                case CallArgument nested:
+                    parts.Add(Compact(nested.Call));
+                    break;
+            }
+        }
+
+        return parts.Count == 0 ? call.Name : string.Join('.', parts);
+    }
+
     private static void Append(StringBuilder builder, CallNode call)
     {
         builder.Append(call.Name).Append('(');

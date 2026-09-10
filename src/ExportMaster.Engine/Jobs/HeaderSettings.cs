@@ -119,9 +119,12 @@ public sealed class HeaderSettings
         // со скобками и кавычками нечитаема, а кавычки Windows в именах не допускает.
         var compact = new RenderContext(context.Settings)
         {
-            StubTableColumns = context.StubTableColumns,
-            StubTableRows = context.StubTableRows,
+            StubAxisLength = context.StubAxisLength,
             CompactStubs = true,
+
+            // Вырезка обязана перейти в этот контекст: без неё GROUPVALUE не
+            // разрешится, имена всех групп совпадут и файлы затрут друг друга.
+            Slice = context.Slice,
         };
 
         var builder = new StringBuilder();

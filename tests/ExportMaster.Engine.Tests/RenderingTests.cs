@@ -78,7 +78,7 @@ public class RenderingTests
             var lines = RenderTable().Split('\n');
 
             Assert.Equal(5, lines.Length);
-            Assert.Equal(";‹FREQ#1›;‹FREQ#2›;‹FREQ#3›", lines[0]);
+            Assert.Equal(";‹FREQ#1›;‹FREQ#2›;‹FREQ#3›;‹FREQ#4›", lines[0]);
             Assert.StartsWith("‹DATA#1›;", lines[1], StringComparison.Ordinal);
         }
 

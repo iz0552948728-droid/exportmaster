@@ -1,7 +1,10 @@
 using ExportMaster.Core;
+using ExportMaster.Engine.Data;
 using ExportMaster.Engine.Rendering;
+using ExportMaster.Formats;
 using ExportMaster.Template.Diagnostics;
 using ExportMaster.Template.Parsing;
+using ExportMaster.Template.Parsing.Ast;
 
 namespace ExportMaster.Engine.Jobs;
 
@@ -42,41 +45,97 @@ public sealed class FormattingService
         var header = HeaderSettings.Parse(parsed.Document.Header, diagnostics);
         SemanticValidator.Validate(parsed.Document, header.GroupBy, diagnostics);
 
-        if (diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
+        if (HasErrors(diagnostics))
         {
-            return Failed(request, diagnostics, "Заголовок шаблона содержит ошибки; см. журнал.");
+            return Failed(request, diagnostics, "Шаблон содержит ошибки; см. журнал.");
         }
 
-        var resolver = new StubValueResolver(request.StubStyle);
-        var renderer = new TemplateRenderer(resolver);
-        var context = new RenderContext(header.Output);
+        Dictionary<string, MatrixFile> matrices;
+        try
+        {
+            matrices = LoadMatrices(request.Sources);
+        }
+        catch (MatrixFormatException exception)
+        {
+            return Failed(request, diagnostics, exception.Message);
+        }
 
-        var key = BuildKey(header.GroupBy);
-        var fileName = header.BuildFileName(renderer, context, diagnostics);
+        if (matrices.Count == 0)
+        {
+            // Файлы данных не заданы: формируется один файл с заглушками.
+            var stub = new StubValueResolver(request.StubStyle);
+            return Render(request, header, parsed.Document, stub, slice: null, diagnostics);
+        }
+
+        if (matrices.Count > 1)
+        {
+            return Failed(
+                request,
+                diagnostics,
+                "Задано несколько матриц. Пока поддерживается одна: неясно, по осям какой из них вести разбиение.");
+        }
+
+        var matrix = matrices.Values.Single();
+
+        if (!ValidateAgainstMatrix(matrix, header.GroupBy, diagnostics))
+        {
+            return Failed(request, diagnostics, "Шаблон не соответствует файлу данных; см. журнал.");
+        }
+
+        var resolver = new MatrixValueResolver(matrices);
+        var lines = new List<ResultLine>();
+
+        foreach (var slice in GroupIterator.Enumerate(matrix, header.GroupBy))
+        {
+            var result = Render(request, header, parsed.Document, resolver, slice, diagnostics);
+            lines.AddRange(result.Lines);
+        }
+
+        diagnostics.AddRange(resolver.Diagnostics);
+        return new FormatJobResult(lines, diagnostics, completed: true);
+    }
+
+    /// <summary>
+    /// Формирует один выходной файл — по вырезке либо по заглушкам.
+    /// </summary>
+    private static FormatJobResult Render(
+        FormatRequest request,
+        HeaderSettings header,
+        TemplateDocument document,
+        IValueResolver resolver,
+        GroupSlice? slice,
+        List<Diagnostic> diagnostics)
+    {
+        var renderer = new TemplateRenderer(resolver);
+        var context = new RenderContext(header.Output) { Slice = slice };
+        var key = slice?.Key ?? string.Join(';', header.GroupBy.Select(axis => $"{axis}=*"));
+
+        var local = new List<Diagnostic>();
+        var fileName = header.BuildFileName(renderer, context, local);
 
         if (string.IsNullOrWhiteSpace(fileName))
         {
-            return Failed(request, diagnostics, "Поле FILENAME дало пустое имя файла.");
+            diagnostics.AddRange(local);
+            return Single(ResultLine.Failure(request.Id, key, string.Empty, "Поле FILENAME дало пустое имя файла."), diagnostics);
         }
 
-        var content = renderer.Render(parsed.Document.Body, context, diagnostics);
+        var content = renderer.Render(document.Body, context, local);
+        diagnostics.AddRange(local);
 
-        if (diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
+        if (HasErrors(local))
         {
-            return new FormatJobResult(
-                [ResultLine.Failure(request.Id, key, fileName, "При формировании файла возникли ошибки; см. журнал.")],
-                diagnostics,
-                completed: true);
+            return Single(
+                ResultLine.Failure(request.Id, key, fileName, "При формировании файла возникли ошибки; см. журнал."),
+                diagnostics);
         }
 
         var path = Path.Combine(request.TargetDirectory, fileName);
 
         if (File.Exists(path) && !request.Overwrite)
         {
-            return new FormatJobResult(
-                [ResultLine.Failure(request.Id, key, fileName, "Файл уже существует, перезапись запрещена ключом /overwrite.")],
-                diagnostics,
-                completed: true);
+            return Single(
+                ResultLine.Failure(request.Id, key, fileName, "Файл уже существует, перезапись запрещена ключом /overwrite."),
+                diagnostics);
         }
 
         try
@@ -86,24 +145,69 @@ public sealed class FormattingService
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return new FormatJobResult(
-                [ResultLine.Failure(request.Id, key, fileName, $"Не удалось записать файл: {exception.Message}")],
-                diagnostics,
-                completed: true);
+            return Single(
+                ResultLine.Failure(request.Id, key, fileName, $"Не удалось записать файл: {exception.Message}"),
+                diagnostics);
         }
 
-        return new FormatJobResult(
-            [ResultLine.Success(request.Id, key, fileName)],
-            diagnostics,
-            completed: true);
+        return Single(ResultLine.Success(request.Id, key, fileName), diagnostics);
     }
 
     /// <summary>
-    /// Ключ результирующего файла. Значения осей приходят из файлов данных, которые
-    /// на этом этапе не читаются, поэтому вместо каждого стоит звёздочка.
+    /// Сверяет оси шаблона с описателями файла: то, что нельзя проверить без данных.
     /// </summary>
-    private static string BuildKey(IReadOnlyList<Dimensions> groupBy) =>
-        string.Join(';', groupBy.Select(axis => $"{axis}=*"));
+    private static bool ValidateAgainstMatrix(
+        MatrixFile matrix,
+        IReadOnlyList<Dimensions> groupBy,
+        List<Diagnostic> diagnostics)
+    {
+        var before = diagnostics.Count;
+
+        foreach (var axis in groupBy)
+        {
+            if (matrix.IndexOfAxis(axis) < 0)
+            {
+                diagnostics.Add(Diagnostic.Error(
+                    DiagnosticCode.ExpectedArgument,
+                    $"Ось разбиения {axis} в файле данных отсутствует. В нём есть: "
+                        + $"{string.Join(", ", matrix.Axes.Select(a => a.Type))}.",
+                    default));
+            }
+        }
+
+        // Разбиение обязано оставить ровно два измерения — они и становятся
+        // строками и колонками таблицы.
+        var expected = matrix.Axes.Count - 2;
+
+        if (groupBy.Count != expected)
+        {
+            diagnostics.Add(Diagnostic.Error(
+                DiagnosticCode.ExpectedArgument,
+                $"Матрица имеет {matrix.Axes.Count} измерений, поэтому GROUPBY должен содержать "
+                    + $"{expected} осей, а содержит {groupBy.Count}.",
+                default));
+        }
+
+        return diagnostics.Count == before;
+    }
+
+    private static Dictionary<string, MatrixFile> LoadMatrices(IReadOnlyDictionary<string, string> sources)
+    {
+        var matrices = new Dictionary<string, MatrixFile>(StringComparer.Ordinal);
+
+        foreach (var (alias, path) in sources)
+        {
+            matrices[alias] = MatrixReader.Read(path);
+        }
+
+        return matrices;
+    }
+
+    private static bool HasErrors(IEnumerable<Diagnostic> diagnostics) =>
+        diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+
+    private static FormatJobResult Single(ResultLine line, List<Diagnostic> diagnostics) =>
+        new([line], diagnostics, completed: true);
 
     private static FormatJobResult Failed(FormatRequest request, List<Diagnostic> diagnostics, string message) =>
         new(

@@ -1,3 +1,4 @@
+using ExportMaster.Engine.Data;
 using ExportMaster.Engine.Jobs;
 
 namespace ExportMaster.Engine.Rendering;
@@ -16,13 +17,10 @@ public sealed class RenderContext
     public OutputSettings Settings { get; }
 
     /// <summary>
-    /// Число колонок в заглушке табличной подстановки. Реальные данные заменят
-    /// это количеством значений соответствующей оси.
+    /// Число точек по каждой оси в заглушке табличной подстановки. Реальные данные
+    /// заменят его длиной соответствующей оси из файла.
     /// </summary>
-    public int StubTableColumns { get; init; } = 3;
-
-    /// <summary>Число строк в заглушке табличной подстановки.</summary>
-    public int StubTableRows { get; init; } = 4;
+    public int StubAxisLength { get; init; } = 4;
 
     /// <summary>
     /// Собирать заглушки в короткой форме. Включается при формировании имени файла:
@@ -30,4 +28,10 @@ public sealed class RenderContext
     /// её символов вдобавок недопустима в именах файлов Windows.
     /// </summary>
     public bool CompactStubs { get; init; }
+
+    /// <summary>
+    /// Вырезка матрицы, для которой формируется текущий файл. Пока файлы данных
+    /// не заданы, остаётся пустой, и значения подставляются заглушками.
+    /// </summary>
+    public GroupSlice? Slice { get; init; }
 }

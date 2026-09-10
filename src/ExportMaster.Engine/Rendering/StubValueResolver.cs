@@ -1,4 +1,5 @@
 using System.Globalization;
+using ExportMaster.Core;
 using ExportMaster.Template.Parsing.Ast;
 
 namespace ExportMaster.Engine.Rendering;
@@ -29,7 +30,7 @@ public sealed class StubValueResolver : IValueResolver
 
         if (context.CompactStubs)
         {
-            return ResolvedValue.FromText(Compact(call));
+            return ResolvedValue.FromText(CallText.Compact(call));
         }
 
         var description = $"{Open}{CallText.Format(call)}{Close}";
@@ -71,42 +72,48 @@ public sealed class StubValueResolver : IValueResolver
         return (scaled - 10000) / 100.0;
     }
 
-    /// <summary>
-    /// Короткая заглушка для имени файла: имена из аргументов через точку.
-    /// FIELD("MEAS", "NAME") превращается в MEAS.NAME, GROUPVALUE("POL1") — в POL1.
-    /// </summary>
-    private static string Compact(CallNode call)
+    /// <summary>Размер сетки, пока настоящих осей нет.</summary>
+    public int AxisLength(Dimensions axis, RenderContext context)
     {
-        var parts = new List<string>();
+        ArgumentNullException.ThrowIfNull(context);
 
-        foreach (var argument in call.Arguments)
-        {
-            switch (argument)
-            {
-                case StringArgument text when !string.IsNullOrWhiteSpace(text.Value):
-                    parts.Add(text.Value);
-                    break;
-
-                case IdentifierArgument identifier:
-                    parts.Add(identifier.Name);
-                    break;
-
-                case CallArgument nested:
-                    parts.Add(Compact(nested.Call));
-                    break;
-            }
-        }
-
-        return parts.Count == 0 ? call.Name : string.Join('.', parts);
+        _ = axis;
+        return context.StubAxisLength;
     }
 
     /// <summary>Заглушка заголовка оси: имя оси и порядковый номер значения.</summary>
-    internal string AxisHeader(string axis, int index, RenderContext context)
+    public string AxisHeader(Dimensions axis, int index, RenderContext context)
     {
         _ = context;
 
         return Style == StubStyle.Descriptive
-            ? $"{Open}{axis}#{index}{Close}"
-            : $"{axis}#{index.ToString(CultureInfo.InvariantCulture)}";
+            ? $"{Open}{axis}#{index + 1}{Close}"
+            : $"{axis}#{(index + 1).ToString(CultureInfo.InvariantCulture)}";
+    }
+
+    /// <summary>
+    /// Заглушка ячейки. Номера строки и колонки входят в её состав, чтобы значения
+    /// различались: одинаковые числа по всей таблице скрыли бы сбитые колонки.
+    /// </summary>
+    public ResolvedValue Cell(
+        string function,
+        Dimensions columnAxis,
+        int column,
+        Dimensions rowAxis,
+        int row,
+        RenderContext context)
+    {
+        _ = columnAxis;
+        _ = rowAxis;
+
+        var cell = new CallNode(
+            function,
+            [
+                new NumberArgument(row + 1, (row + 1).ToString(CultureInfo.InvariantCulture), default),
+                new NumberArgument(column + 1, (column + 1).ToString(CultureInfo.InvariantCulture), default),
+            ],
+            default);
+
+        return Resolve(cell, context);
     }
 }

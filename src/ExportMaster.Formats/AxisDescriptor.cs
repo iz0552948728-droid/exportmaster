@@ -111,7 +111,9 @@ public sealed class AxisDescriptor
             return index.ToString(CultureInfo.InvariantCulture);
         }
 
-        return NumberAt(index).ToString("G15", CultureInfo.InvariantCulture);
+        // Двенадцати значащих цифр хватает любому измерению, а пятнадцать
+        // выносят наружу накопленную ошибку: -1.3 + 0.05*24 даёт -0.0999999999999999.
+        return NumberAt(index).ToString("G12", CultureInfo.InvariantCulture);
     }
 
     private void CheckIndex(int index)

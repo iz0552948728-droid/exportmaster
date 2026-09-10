@@ -26,4 +26,8 @@
     <ProjectReference Include="..\..\src\ExportMaster.Engine\ExportMaster.Engine.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\samples\data\aaa.mtx" Link="samples/aaa.mtx" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,5 +1,11 @@
 {
   "profiles": {
+    "Настоящие данные": {
+      "commandName": "Project",
+      "commandLineArgs": "/source DATA:samples/data/aaa.mtx /md samples/templates/example2.md /target out /id 1",
+      "workingDirectory": "..\\..",
+      "comment": "Разбиение по FREQ: три выходных файла с реальными амплитудами."
+    },
     "Пример: заглушки-описания": {
       "commandName": "Project",
       "commandLineArgs": "/md samples/templates/example.md /target out /id 1",

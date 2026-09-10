@@ -1,5 +1,5 @@
-using System.Globalization;
 using System.Text;
+using ExportMaster.Core;
 using ExportMaster.Template.Diagnostics;
 using ExportMaster.Template.Parsing.Ast;
 
@@ -140,73 +140,67 @@ public sealed class TemplateRenderer
             return _resolver.Resolve(call, context).Text;
         }
 
-        var columnAxis = ArgumentText(call.Arguments[0]);
-        var rowAxis = ArgumentText(call.Arguments[1]);
+        var columnAxis = ReadAxis(call.Arguments[0]);
+        var rowAxis = ReadAxis(call.Arguments[1]);
+
+        if (columnAxis is null || rowAxis is null)
+        {
+            // Имена осей проверяет SemanticValidator; здесь просто нечего рисовать.
+            return _resolver.Resolve(call, context).Text;
+        }
 
         // Разделитель ячеек задаётся пятым аргументом: у разных таблиц одного
         // файла он может различаться, поэтому в заголовок шаблона его не выносят.
         var delimiter = ArgumentText(call.Arguments[4]);
+        var function = ArgumentText(call.Arguments[2]);
+        var format = call.Arguments[3] as StringArgument;
+
+        var columns = _resolver.AxisLength(columnAxis.Value, context);
+        var rows = _resolver.AxisLength(rowAxis.Value, context);
 
         var builder = new StringBuilder();
 
         // Строка заголовков: значения оси колонок приходят из данных, вписать их
         // в шаблон вручную нельзя, поэтому их печатает сама таблица. Ячейка на
         // пересечении заголовков пуста.
-        for (var column = 1; column <= context.StubTableColumns; column++)
+        for (var column = 0; column < columns; column++)
         {
-            builder.Append(delimiter).Append(Header(columnAxis, column, context));
+            builder.Append(delimiter).Append(_resolver.AxisHeader(columnAxis.Value, column, context));
         }
 
-        for (var row = 1; row <= context.StubTableRows; row++)
+        for (var row = 0; row < rows; row++)
         {
             // Перевод строки ставится перед строкой, а не после: после последней
             // строки таблицы его быть не должно — его поставит сам шаблон.
-            builder.Append('\n').Append(Header(rowAxis, row, context));
+            builder.Append('\n').Append(_resolver.AxisHeader(rowAxis.Value, row, context));
 
-            for (var column = 1; column <= context.StubTableColumns; column++)
+            for (var column = 0; column < columns; column++)
             {
-                builder.Append(delimiter).Append(RenderCell(call, row, column, context, diagnostics));
+                var value = _resolver.Cell(function, columnAxis.Value, column, rowAxis.Value, row, context);
+
+                builder.Append(delimiter).Append(
+                    value.Number is { } number && format is not null
+                        ? number.ToString(format.Value, context.Settings.NumberFormat)
+                        : value.Text);
             }
         }
 
         return builder.ToString();
     }
 
-    private string RenderCell(
-        CallNode table,
-        int row,
-        int column,
-        RenderContext context,
-        List<Diagnostic> diagnostics)
+    private static Dimensions? ReadAxis(Argument argument)
     {
-        var function = ArgumentText(table.Arguments[2]);
-        var format = table.Arguments[3];
-
-        // Номера строки и колонки входят в состав ячейки, чтобы значения заглушек
-        // различались: одинаковые числа по всей таблице скрыли бы сбитые колонки.
-        var cell = new CallNode(
-            function,
-            [
-                new NumberArgument(row, row.ToString(CultureInfo.InvariantCulture), table.Span),
-                new NumberArgument(column, column.ToString(CultureInfo.InvariantCulture), table.Span),
-            ],
-            table.Span);
-
-        var value = _resolver.Resolve(cell, context);
-
-        if (value.Number is { } number && format is StringArgument formatText)
+        var name = argument switch
         {
-            return number.ToString(formatText.Value, context.Settings.NumberFormat);
-        }
+            StringArgument text => text.Value,
+            IdentifierArgument identifier => identifier.Name,
+            _ => null,
+        };
 
-        _ = diagnostics;
-        return value.Text;
+        return name is not null && Enum.TryParse<Dimensions>(name, ignoreCase: false, out var axis)
+            ? axis
+            : null;
     }
-
-    private string Header(string axis, int index, RenderContext context) =>
-        _resolver is StubValueResolver stub
-            ? stub.AxisHeader(axis, index, context)
-            : $"{axis}{index}";
 
     private static string ArgumentText(Argument argument) => argument switch
     {
