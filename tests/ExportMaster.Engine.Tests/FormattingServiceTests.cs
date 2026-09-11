@@ -18,7 +18,10 @@ public class FormattingServiceTests : IDisposable
     [Fact]
     public void ProducesFileAndReportsSuccess()
     {
-        var result = Run("[MDHEADER]\n{FILENAME(\"report.csv\")}\n[/MDHEADER]\nЧастота;Уровень\n");
+        // Перевод строки закреплён директивой: умолчание зависит от операционной
+        // системы, и содержимое файла нельзя сравнивать с литералом без неё.
+        var result = Run(
+            "[MDHEADER]\n{FILENAME(\"report.csv\")}\n{NEWLINE(\"LF\")}\n[/MDHEADER]\nЧастота;Уровень\n");
 
         Assert.Equal(0, result.ExitCode);
 
@@ -26,6 +29,18 @@ public class FormattingServiceTests : IDisposable
         Assert.Equal(0, line.Code);
         Assert.Equal("report.csv", line.File);
         Assert.Equal("Частота;Уровень\n", File.ReadAllText(Path.Combine(_target, "report.csv")));
+    }
+
+    [Fact]
+    public void NewLineDefaultsToTheOneUsedByTheOperatingSystem()
+    {
+        // Согласованное поведение: без директивы NEWLINE переводы строк такие,
+        // как принято в системе — CRLF на Windows, LF на Linux.
+        Run("[MDHEADER]\n{FILENAME(\"os.csv\")}\n[/MDHEADER]\nпервая\nвторая");
+
+        var content = File.ReadAllText(Path.Combine(_target, "os.csv"));
+
+        Assert.Equal($"первая{Environment.NewLine}вторая", content);
     }
 
     [Fact]
