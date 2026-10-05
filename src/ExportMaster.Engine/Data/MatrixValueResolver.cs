@@ -16,6 +16,7 @@ public sealed class MatrixValueResolver : IValueResolver
     private const string ValueField = "VALUE";
     private const string GroupValueField = "GROUPVALUE";
     private const string HeaderFieldName = "FIELD";
+    private const string FormatField = "FORMAT";
     private const string NumberFormat = "G6";
 
     private readonly MatrixFile _matrix;
@@ -40,6 +41,7 @@ public sealed class MatrixValueResolver : IValueResolver
             GroupValueField => ResolveGroupValue(call, context),
             ValueField => ResolveValue(call, context),
             HeaderFieldName => ResolveHeaderField(call, context),
+            FormatField => ResolveUnformattable(call, context),
             _ => ResolveQuantity(call, context),
         };
     }
@@ -129,6 +131,17 @@ public sealed class MatrixValueResolver : IValueResolver
         }
 
         return ResolvedValue.FromNumber(value.Real, value.Real.ToString(NumberFormat, context.Settings.NumberFormat));
+    }
+
+    /// <summary>
+    /// Рендерер обращается к источнику значений за полем <c>FORMAT</c> только тогда,
+    /// когда форматировать оказалось нечего: значение внутри не является числом.
+    /// На заглушках это нормальный исход, на реальных данных — ошибка.
+    /// </summary>
+    private ResolvedValue ResolveUnformattable(CallNode call, RenderContext context)
+    {
+        Report(call, $"Значение внутри {FormatField} не является числом, форматировать нечего.");
+        return Unresolved(call, context);
     }
 
     /// <summary>
@@ -287,15 +300,21 @@ public sealed class MatrixValueResolver : IValueResolver
                 : $"‹{CallText.Format(call)}›");
 
     /// <summary>
-    /// Добавляет замечание один раз на место в шаблоне: при разбиении одно и то же
-    /// поле вычисляется на каждую вырезку, и журнал заполнился бы повторами.
+    /// Добавляет замечание.
     /// </summary>
+    /// <remarks>
+    /// Предупреждение сообщается один раз на место в шаблоне: при разбиении одно
+    /// и то же поле вычисляется на каждую вырезку, и журнал заполнился бы повторами.
+    /// Ошибка сообщается всякий раз — по ней решается судьба каждого отдельного файла.
+    /// </remarks>
     private void Report(CallNode call, string message, DiagnosticSeverity severity = DiagnosticSeverity.Error)
     {
-        if (_reported.Add(call.Span))
+        if (severity != DiagnosticSeverity.Error && !_reported.Add(call.Span))
         {
-            _diagnostics.Add(new Diagnostic(severity, DiagnosticCode.ExpectedArgument, message, call.Span));
+            return;
         }
+
+        _diagnostics.Add(new Diagnostic(severity, DiagnosticCode.ExpectedArgument, message, call.Span));
     }
 
     private static Dimensions? ReadAxis(Argument? argument)

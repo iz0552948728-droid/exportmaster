@@ -81,7 +81,6 @@ public sealed class FormattingService
             lines.AddRange(result.Lines);
         }
 
-        diagnostics.AddRange(resolver.Diagnostics);
         return new FormatJobResult(lines, diagnostics, completed: true);
     }
 
@@ -101,6 +100,10 @@ public sealed class FormattingService
         var key = slice?.Key(new AxisValueFormatter(header.Output))
             ?? string.Join(';', header.GroupBy.Select(axis => $"{axis}=*"));
 
+        // Замечания источника значений относятся именно к этому файлу: по ним
+        // решается, записывать его или сообщить об ошибке.
+        var reportedBefore = resolver.Diagnostics.Count;
+
         var local = new List<Diagnostic>();
         var fileName = header.BuildFileName(renderer, context, local);
 
@@ -111,6 +114,7 @@ public sealed class FormattingService
         }
 
         var content = renderer.Render(document.Body, context, local);
+        local.AddRange(resolver.Diagnostics.Skip(reportedBefore));
         diagnostics.AddRange(local);
 
         if (HasErrors(local))

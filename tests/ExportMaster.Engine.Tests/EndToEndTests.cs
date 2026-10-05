@@ -191,6 +191,19 @@ public class EndToEndTests : IDisposable
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("IFBW", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void IndexOutsideAnAxisFailsTheFileInsteadOfWritingAStub()
+    {
+        // Файл с молчаливо пропущенным значением опаснее отсутствующего: он выглядит
+        // рабочим. Поэтому ошибка подстановки обязана дойти до строки отчёта.
+        var result = Run(Header("{FORMAT(\"0.0\", AMP({VALUE(0, 0, 0, 0, 0, 999, 0, 0)}))}"));
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.All(result.Lines, line => Assert.Equal(1, line.Code));
+        Assert.Empty(Directory.GetFiles(_target));
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("999", StringComparison.Ordinal));
+    }
+
     /// <summary>Шаблон из одного поля: выводится только оно.</summary>
     private static string Header(string field) => $$"""
         [MDHEADER]

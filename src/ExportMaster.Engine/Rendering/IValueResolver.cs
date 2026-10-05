@@ -1,4 +1,5 @@
 using ExportMaster.Core;
+using ExportMaster.Template.Diagnostics;
 using ExportMaster.Template.Parsing.Ast;
 
 namespace ExportMaster.Engine.Rendering;
@@ -14,6 +15,17 @@ namespace ExportMaster.Engine.Rendering;
 /// </remarks>
 public interface IValueResolver
 {
+    /// <summary>
+    /// Замечания, накопленные при подстановке значений.
+    /// </summary>
+    /// <remarks>
+    /// Список только растёт, и по его длине до и после формирования файла видно,
+    /// что пошло не так именно в этом файле. Иначе ошибка подстановки оставалась бы
+    /// в журнале, а в стандартный вывод шла бы строка с кодом «ОК»: файл с молчаливо
+    /// пропущенным значением опаснее отсутствующего.
+    /// </remarks>
+    IReadOnlyList<Diagnostic> Diagnostics { get; }
+
     /// <summary>Возвращает значение для указанного поля.</summary>
     ResolvedValue Resolve(CallNode call, RenderContext context);
 

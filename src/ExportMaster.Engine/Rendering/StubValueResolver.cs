@@ -1,5 +1,6 @@
 using System.Globalization;
 using ExportMaster.Core;
+using ExportMaster.Template.Diagnostics;
 using ExportMaster.Template.Parsing.Ast;
 
 namespace ExportMaster.Engine.Rendering;
@@ -22,6 +23,9 @@ public sealed class StubValueResolver : IValueResolver
     }
 
     public StubStyle Style { get; }
+
+    /// <summary>Заглушкам жаловаться не на что: любое поле заменимо описанием.</summary>
+    public IReadOnlyList<Diagnostic> Diagnostics => [];
 
     public ResolvedValue Resolve(CallNode call, RenderContext context)
     {
