@@ -122,23 +122,84 @@ public class EndToEndTests : IDisposable
         Assert.Equal(2, result.ExitCode);
     }
 
-    [Fact]
-    public void VectorFieldIsOnlyAWarningForNow()
+    [Theory]
+    // Поля блока заголовка образца; значения сверены с байтами файла.
+    [InlineData("{FIELD(\"MeasurementType\")}", "БЗП")]
+    [InlineData("{FIELD(\"CoordinateSystem\")}", "XY")]
+    [InlineData("{FIELD(\"ChamberType\")}", "БЗ")]
+    [InlineData("{FIELD(\"DataAxis\")}", "Y")]
+    [InlineData("{FIELD(\"SyncModeType\")}", "Простой")]
+    [InlineData("{FIELD(\"AuxType\")}", "ТМАЗ 2-4")]
+    [InlineData("{FIELD(\"AuxIdentifier\")}", "0526492")]
+    [InlineData("{FIELD(\"IFBW\")}", "1000")]
+    [InlineData("{FIELD(\"P\")}", "13")]
+    [InlineData("{FIELD(\"DateStart\")}", "07.09.2026 15:10:11")]
+    [InlineData("{FIELD(\"MeasurementDistance\")}", "0.0224983 м")]
+    [InlineData("{FIELD(\"AuxPolarization\")}", "не задано")]
+    [InlineData("{FIELD(\"SW1\")}", "не задано")]
+    [InlineData("{FIELD(\"ZeroAz\")}", "не задано")]
+    public void HeaderFieldIsSubstitutedFromTheFile(string field, string expected)
     {
-        // Чтение векторов ещё не сделано: файл формируется, значение — заглушка.
+        var result = Run(Header(field));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(expected, File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
+    }
+
+    [Fact]
+    public void HeaderFieldCanBeFormatted()
+    {
+        // FORMAT работает по числу, поэтому единица измерения уступает место формату.
+        var result = Run(Header("{FORMAT(\"0.000\", {FIELD(\"MeasurementDistance\")})}"));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("0.022", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
+    }
+
+    [Fact]
+    public void DateFormatIsSetByADirective()
+    {
         var result = Run("""
             [MDHEADER]
             {FILENAME("a.txt")}
             {GROUPBY("FREQ")}
+            {NEWLINE("LF")}
+            {DATEFORMAT("yyyy-MM-dd")}
             [/MDHEADER]
-            Измерение: {FIELD("MEAS", "NAME")}
+            {FIELD("DateStart")}
             """);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Warning);
+        Assert.Equal("2026-09-07", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
     }
+
+    [Fact]
+    public void UnknownHeaderFieldNameIsAnError()
+    {
+        var result = Run(Header("{FIELD(\"POW\")}"));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Empty(Directory.GetFiles(_target));
+    }
+
+    [Fact]
+    public void WrongCaseOfFieldNameSuggestsTheRightSpelling()
+    {
+        var result = Run(Header("{FIELD(\"ifbw\")}"));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("IFBW", StringComparison.Ordinal));
+    }
+
+    /// <summary>Шаблон из одного поля: выводится только оно.</summary>
+    private static string Header(string field) => $$"""
+        [MDHEADER]
+        {FILENAME("a.txt")}
+        {GROUPBY("FREQ")}
+        {NEWLINE("LF")}
+        [/MDHEADER]
+        {{field}}
+        """;
 
     private FormatJobResult Run(string? template = null)
     {
@@ -150,10 +211,7 @@ public class EndToEndTests : IDisposable
             TemplatePath = path,
             TargetDirectory = _target,
             Id = "1",
-            Sources = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["DATA"] = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_3.mtx"),
-            },
+            SourcePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_3.mtx"),
         });
     }
 

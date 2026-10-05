@@ -45,7 +45,7 @@ internal static class Program
             TemplatePath = options.TemplatePath,
             TargetDirectory = options.TargetDirectory,
             Id = options.Id,
-            Sources = options.Sources,
+            SourcePath = options.SourcePath,
             Key = options.Key,
             Overwrite = options.Overwrite,
             StubStyle = options.StubStyle,

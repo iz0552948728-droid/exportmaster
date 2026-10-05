@@ -20,9 +20,8 @@ public sealed class FormatRequest
     /// <summary>Идентификатор задания (ключ <c>/id</c>).</summary>
     public string Id { get; init; } = string.Empty;
 
-    /// <summary>Файлы данных по алиасам (ключ <c>/source</c>).</summary>
-    public IReadOnlyDictionary<string, string> Sources { get; init; } =
-        new Dictionary<string, string>(StringComparer.Ordinal);
+    /// <summary>Файл данных (ключ <c>/source</c>); без него значения подставляются заглушками.</summary>
+    public string? SourcePath { get; init; }
 
     /// <summary>Ключ конкретного файла (ключ <c>/key</c>); на этом этапе не используется для отбора.</summary>
     public string? Key { get; init; }

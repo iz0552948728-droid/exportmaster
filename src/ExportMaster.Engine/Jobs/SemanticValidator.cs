@@ -1,4 +1,5 @@
 using ExportMaster.Core;
+using ExportMaster.Formats;
 using ExportMaster.Template.Diagnostics;
 using ExportMaster.Template.Parsing.Ast;
 
@@ -24,6 +25,7 @@ public static class SemanticValidator
 {
     private const string GroupValueField = "GROUPVALUE";
     private const string TableField = "TABLE";
+    private const string HeaderFieldName = "FIELD";
 
     public static void Validate(
         TemplateDocument document,
@@ -45,8 +47,55 @@ public static class SemanticValidator
                 case TableField:
                     ValidateTable(call, groupBy, diagnostics);
                     break;
+
+                case HeaderFieldName:
+                    ValidateHeaderField(call, diagnostics);
+                    break;
             }
         }
+    }
+
+    /// <summary>
+    /// Имя поля заголовка известно до чтения данных: состав полей задан ТЗ
+    /// п. 4.2.1.6. Поэтому опечатка в имени ловится здесь — до того, как будет
+    /// записан хотя бы один файл.
+    /// </summary>
+    private static void ValidateHeaderField(CallNode call, List<Diagnostic> diagnostics)
+    {
+        if (call.Arguments.Count != 1)
+        {
+            diagnostics.Add(Diagnostic.Error(
+                DiagnosticCode.ExpectedArgument,
+                $"Поле {HeaderFieldName} принимает ровно одно имя поля заголовка.",
+                call.Span));
+
+            return;
+        }
+
+        var argument = call.Arguments[0];
+
+        var name = argument switch
+        {
+            StringArgument text => text.Value,
+            IdentifierArgument identifier => identifier.Name,
+            _ => null,
+        };
+
+        if (HeaderFields.TryParse(name, out _))
+        {
+            return;
+        }
+
+        // Имён 35, перечислять их в сообщении бесполезно; вместо этого подсказываем
+        // написание, если ошибка только в регистре.
+        var suggestion = HeaderFields.Suggest(name);
+
+        diagnostics.Add(Diagnostic.Error(
+            DiagnosticCode.ExpectedArgument,
+            suggestion is null
+                ? $"'{name}' не является полем заголовка; имена перечислены в ТЗ п. 4.2.1.6."
+                : $"Поле заголовка пишется как '{suggestion}', а не '{name}': регистр учитывается.",
+            argument.Span));
     }
 
     /// <summary>

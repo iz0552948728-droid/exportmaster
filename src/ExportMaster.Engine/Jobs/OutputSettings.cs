@@ -26,6 +26,18 @@ public sealed class OutputSettings
     public IReadOnlyDictionary<Dimensions, string> AxisFormats { get; init; } =
         new Dictionary<Dimensions, string>();
 
+    /// <summary>
+    /// Вид даты и времени в полях заголовка. По умолчанию ДД.ММ.ГГГГ ЧЧ:ММ:СС,
+    /// как условлено с заказчиком; переключается директивой <c>DATEFORMAT</c>.
+    /// </summary>
+    public string DateFormat { get; init; } = "dd.MM.yyyy HH:mm:ss";
+
+    /// <summary>
+    /// Текст на месте незаданного значения. В файле это 255, −1 или NaN, смотря
+    /// по полю, а в отчёте — одно и то же слово.
+    /// </summary>
+    public string UnsetText { get; init; } = "не задано";
+
     /// <summary>Кодировка выходного файла. По умолчанию UTF-8 без BOM.</summary>
     public Encoding Encoding { get; init; } = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 

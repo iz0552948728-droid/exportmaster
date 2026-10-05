@@ -38,7 +38,7 @@ public static class CommandLineParser
             switch (key)
             {
                 case "source":
-                    AddSource(NextValue(args, ref index, key, errors), options, errors);
+                    ReadSource(NextValue(args, ref index, key, errors), options, errors);
                     break;
 
                 case "md":
@@ -116,35 +116,28 @@ public static class CommandLineParser
         return args[index];
     }
 
-    private static void AddSource(string? value, CommandLineOptions options, List<string> errors)
+    /// <summary>
+    /// Файл данных. ТЗ п. 4.3.4 допускает один такой ключ: матрица в задании одна,
+    /// и все условия измерения лежат в её же блоке заголовка.
+    /// </summary>
+    private static void ReadSource(string? value, CommandLineOptions options, List<string> errors)
     {
         if (value is null)
         {
             return;
         }
 
-        // Разделяем по первому двоеточию: путь в Windows содержит своё
-        // (например DATA:C:\data\matrix.bin).
-        var separator = value.IndexOf(':', StringComparison.Ordinal);
-
-        if (separator <= 0 || separator == value.Length - 1)
+        if (options.SourcePath is not null)
         {
-            errors.Add($"Ключ /source ожидает запись вида алиас:файл, а получено '{value}'.");
+            errors.Add("Ключ /source указан повторно: файл данных в задании один.");
             return;
         }
 
-        var alias = value[..separator];
-        var path = value[(separator + 1)..];
+        options.SourcePath = value;
 
-        if (!options.Sources.TryAdd(alias, path))
+        if (!File.Exists(value))
         {
-            errors.Add($"Алиас '{alias}' указан повторно.");
-            return;
-        }
-
-        if (!File.Exists(path))
-        {
-            errors.Add($"Файл данных не найден: {path}");
+            errors.Add($"Файл данных не найден: {value}");
         }
     }
 

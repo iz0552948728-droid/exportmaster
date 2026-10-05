@@ -41,6 +41,7 @@ public sealed class HeaderSettings
         var decimalSeparator = ".";
         var axisFormats = new Dictionary<Dimensions, string>();
         var newLine = Environment.NewLine;
+        var dateFormat = "dd.MM.yyyy HH:mm:ss";
         Encoding encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
         foreach (var field in header)
@@ -67,6 +68,10 @@ public sealed class HeaderSettings
 
                 case "DECIMAL":
                     decimalSeparator = ReadString(field, diagnostics) ?? decimalSeparator;
+                    break;
+
+                case "DATEFORMAT":
+                    dateFormat = ReadString(field, diagnostics) ?? dateFormat;
                     break;
 
                 case "NEWLINE":
@@ -105,6 +110,7 @@ public sealed class HeaderSettings
             DecimalSeparator = decimalSeparator,
             AxisFormats = axisFormats,
             NewLine = newLine,
+            DateFormat = dateFormat,
             Encoding = encoding,
         };
 

@@ -36,47 +36,44 @@ public class CommandLineParserTests : IDisposable
     }
 
     [Fact]
-    public void SourceIsSplitAtFirstColon()
+    public void SourceIsAPlainPath()
     {
-        // Путь в Windows содержит своё двоеточие: DATA:C:\data\matrix.bin.
-        var data = Path.Combine(_directory, "matrix.bin");
-        File.WriteAllBytes(data, [1, 2, 3]);
+        // Алиасов больше нет: файл данных в задании один (ТЗ п. 4.3.4).
+        var data = CreateDataFile("matrix.mtx");
 
-        var result = CommandLineParser.Parse(["/md", _template, "/target", _directory, "/source", $"DATA:{data}"]);
+        var result = CommandLineParser.Parse(["/md", _template, "/target", _directory, "/source", data]);
 
         Assert.True(result.Success);
-        Assert.Equal(data, result.Options!.Sources["DATA"]);
+        Assert.Equal(data, result.Options!.SourcePath);
     }
 
     [Fact]
-    public void SeveralSourcesAreCollected()
+    public void SecondSourceIsRejected()
     {
-        var first = CreateDataFile("a.bin");
-        var second = CreateDataFile("b.bin");
+        var first = CreateDataFile("a.mtx");
+        var second = CreateDataFile("b.mtx");
 
         var result = CommandLineParser.Parse(
-            ["/md", _template, "/target", _directory, "/source", $"DATA:{first}", "/source", $"MEAS:{second}"]);
-
-        Assert.True(result.Success);
-        Assert.Equal(2, result.Options!.Sources.Count);
-    }
-
-    [Fact]
-    public void DuplicateAliasIsRejected()
-    {
-        var data = CreateDataFile("a.bin");
-
-        var result = CommandLineParser.Parse(
-            ["/md", _template, "/target", _directory, "/source", $"DATA:{data}", "/source", $"DATA:{data}"]);
+            ["/md", _template, "/target", _directory, "/source", first, "/source", second]);
 
         Assert.False(result.Success);
+    }
+
+    [Fact]
+    public void SourceIsOptional()
+    {
+        // Без файла данных шаблон прогоняется на заглушках.
+        var result = CommandLineParser.Parse(["/md", _template, "/target", _directory]);
+
+        Assert.True(result.Success);
+        Assert.Null(result.Options!.SourcePath);
     }
 
     [Fact]
     public void MissingDataFileIsRejected()
     {
         var result = CommandLineParser.Parse(
-            ["/md", _template, "/target", _directory, "/source", "DATA:нет-такого.bin"]);
+            ["/md", _template, "/target", _directory, "/source", "нет-такого.mtx"]);
 
         Assert.False(result.Success);
     }

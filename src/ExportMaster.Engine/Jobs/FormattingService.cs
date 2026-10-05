@@ -50,39 +50,29 @@ public sealed class FormattingService
             return Failed(request, diagnostics, "Шаблон содержит ошибки; см. журнал.");
         }
 
-        Dictionary<string, MatrixFile> matrices;
+        if (string.IsNullOrEmpty(request.SourcePath))
+        {
+            // Файл данных не задан: формируется один файл с заглушками.
+            var stub = new StubValueResolver(request.StubStyle);
+            return Render(request, header, parsed.Document, stub, slice: null, diagnostics);
+        }
+
+        MatrixFile matrix;
         try
         {
-            matrices = LoadMatrices(request.Sources);
+            matrix = MatrixReader.Read(request.SourcePath);
         }
         catch (MatrixFormatException exception)
         {
             return Failed(request, diagnostics, exception.Message);
         }
 
-        if (matrices.Count == 0)
-        {
-            // Файлы данных не заданы: формируется один файл с заглушками.
-            var stub = new StubValueResolver(request.StubStyle);
-            return Render(request, header, parsed.Document, stub, slice: null, diagnostics);
-        }
-
-        if (matrices.Count > 1)
-        {
-            return Failed(
-                request,
-                diagnostics,
-                "Задано несколько матриц. Пока поддерживается одна: неясно, по осям какой из них вести разбиение.");
-        }
-
-        var matrix = matrices.Values.Single();
-
         if (!ValidateAgainstMatrix(matrix, header.GroupBy, diagnostics))
         {
             return Failed(request, diagnostics, "Шаблон не соответствует файлу данных; см. журнал.");
         }
 
-        var resolver = new MatrixValueResolver(matrices);
+        var resolver = new MatrixValueResolver(matrix);
         var lines = new List<ResultLine>();
 
         foreach (var slice in GroupIterator.Enumerate(matrix, header.GroupBy))
@@ -190,18 +180,6 @@ public sealed class FormattingService
         }
 
         return diagnostics.Count == before;
-    }
-
-    private static Dictionary<string, MatrixFile> LoadMatrices(IReadOnlyDictionary<string, string> sources)
-    {
-        var matrices = new Dictionary<string, MatrixFile>(StringComparer.Ordinal);
-
-        foreach (var (alias, path) in sources)
-        {
-            matrices[alias] = MatrixReader.Read(path);
-        }
-
-        return matrices;
     }
 
     private static bool HasErrors(IEnumerable<Diagnostic> diagnostics) =>

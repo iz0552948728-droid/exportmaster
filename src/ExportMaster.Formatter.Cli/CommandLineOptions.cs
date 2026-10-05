@@ -13,7 +13,8 @@ public sealed class CommandLineOptions
 
     public string Id { get; set; } = string.Empty;
 
-    public Dictionary<string, string> Sources { get; } = new(StringComparer.Ordinal);
+    /// <summary>Файл данных (ключ <c>/source</c>); без него формируются заглушки.</summary>
+    public string? SourcePath { get; set; }
 
     public string? Key { get; set; }
 
@@ -25,7 +26,7 @@ public sealed class CommandLineOptions
     public static string Usage => """
         МАСТЕР ЭКСПОРТА — модуль форматирования
 
-          /source <алиас>:<файл>   файл данных под заданным алиасом, можно указывать многократно
+          /source <файл>           файл данных
           /md <файл>               файл шаблона
           /target <путь>           каталог для результата
           /id <идентификатор>      идентификатор задания

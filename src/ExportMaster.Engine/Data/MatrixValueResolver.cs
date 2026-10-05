@@ -15,16 +15,16 @@ public sealed class MatrixValueResolver : IValueResolver
 {
     private const string ValueField = "VALUE";
     private const string GroupValueField = "GROUPVALUE";
-    private const string VectorField = "FIELD";
+    private const string HeaderFieldName = "FIELD";
     private const string NumberFormat = "G6";
 
-    private readonly IReadOnlyDictionary<string, MatrixFile> _matrices;
+    private readonly MatrixFile _matrix;
     private readonly List<Diagnostic> _diagnostics = [];
     private readonly HashSet<SourceSpan> _reported = [];
 
-    public MatrixValueResolver(IReadOnlyDictionary<string, MatrixFile> matrices)
+    public MatrixValueResolver(MatrixFile matrix)
     {
-        _matrices = matrices ?? throw new ArgumentNullException(nameof(matrices));
+        _matrix = matrix ?? throw new ArgumentNullException(nameof(matrix));
     }
 
     /// <summary>Замечания, накопленные при подстановке значений.</summary>
@@ -39,7 +39,7 @@ public sealed class MatrixValueResolver : IValueResolver
         {
             GroupValueField => ResolveGroupValue(call, context),
             ValueField => ResolveValue(call, context),
-            VectorField => ResolveVectorField(call, context),
+            HeaderFieldName => ResolveHeaderField(call, context),
             _ => ResolveQuantity(call, context),
         };
     }
@@ -131,15 +131,47 @@ public sealed class MatrixValueResolver : IValueResolver
         return ResolvedValue.FromNumber(value.Real, value.Real.ToString(NumberFormat, context.Settings.NumberFormat));
     }
 
-    /// <summary>Значение из файла вектора; поддержки векторов пока нет.</summary>
-    private ResolvedValue ResolveVectorField(CallNode call, RenderContext context)
+    /// <summary>
+    /// Поле блока данных заголовка: <c>FIELD(&lt;имя поля&gt;)</c> (ТЗ пп. 4.2.1.6, 4.4.3.3).
+    /// </summary>
+    private ResolvedValue ResolveHeaderField(CallNode call, RenderContext context)
     {
-        Report(
-            call,
-            "Чтение файлов вектора ещё не реализовано: значение заменено заглушкой.",
-            DiagnosticSeverity.Warning);
+        if (call.Arguments.Count != 1)
+        {
+            Report(call, $"Поле {HeaderFieldName} принимает ровно одно имя поля заголовка.");
+            return Unresolved(call, context);
+        }
 
-        return Unresolved(call, context);
+        var name = call.Arguments[0] switch
+        {
+            StringArgument text => text.Value,
+            IdentifierArgument identifier => identifier.Name,
+            _ => null,
+        };
+
+        if (!HeaderFields.TryParse(name, out var field))
+        {
+            // Имён 35, перечислять их в сообщении бесполезно; вместо этого
+            // подсказываем написание, если ошибка только в регистре.
+            var suggestion = HeaderFields.Suggest(name);
+
+            Report(
+                call,
+                suggestion is null
+                    ? $"'{name}' не является полем заголовка; имена перечислены в ТЗ п. 4.2.1.6."
+                    : $"Поле заголовка пишется как '{suggestion}', а не '{name}': регистр учитывается.");
+
+            return Unresolved(call, context);
+        }
+
+        var value = new HeaderFieldFormatter(context.Settings).Format(_matrix.Header, field, out var warning);
+
+        if (warning is not null)
+        {
+            Report(call, warning, DiagnosticSeverity.Warning);
+        }
+
+        return value;
     }
 
     /// <summary>Величина, вычисленная от значения матрицы: AMP, PHASE и прочие.</summary>
@@ -173,26 +205,12 @@ public sealed class MatrixValueResolver : IValueResolver
     /// </remarks>
     private bool TryReadPoint(CallNode call, out MatrixFile matrix, out Complex value)
     {
-        matrix = null!;
+        matrix = _matrix;
         value = default;
-
-        if (call.Arguments.Count < 1 || call.Arguments[0] is not StringArgument alias)
-        {
-            Report(call, $"Поле {ValueField} ожидает алиас файла данных и список индексов.");
-            return false;
-        }
-
-        if (!_matrices.TryGetValue(alias.Value, out var found))
-        {
-            Report(call, $"Алиас '{alias.Value}' не задан ключом /source или указывает не на матрицу.");
-            return false;
-        }
-
-        matrix = found;
 
         var axes = Enum.GetValues<Dimensions>();
 
-        if (call.Arguments.Count - 1 != axes.Length)
+        if (call.Arguments.Count != axes.Length)
         {
             Report(call, $"Поле {ValueField} ожидает {axes.Length} индексов — по одному на каждый тип значения.");
             return false;
@@ -202,7 +220,7 @@ public sealed class MatrixValueResolver : IValueResolver
 
         for (var position = 0; position < axes.Length; position++)
         {
-            if (call.Arguments[position + 1] is not NumberArgument number)
+            if (call.Arguments[position] is not NumberArgument number)
             {
                 Report(call, $"Индексы в поле {ValueField} должны быть числами.");
                 return false;
