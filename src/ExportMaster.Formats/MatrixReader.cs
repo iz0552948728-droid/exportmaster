@@ -8,10 +8,11 @@ namespace ExportMaster.Formats;
 /// Читает файл многомерной матрицы (<c>.mtx</c>).
 /// </summary>
 /// <remarks>
-/// Раскладка файла подтверждена на образце от автора формата; отличия от ТЗ ред. 1.0
+/// Раскладка файла подтверждена на образце от автора формата; отличия от ТЗ ред. 1.2
 /// перечислены в <c>docs/format-spec.md</c>. Существенные из них: размер метаданных
-/// отсчитывается от начала файла, а поле ValueCount при задании оси диапазоном
-/// означает число хранимых значений, а не число точек.
+/// отсчитывается от начала файла и указывает прямо на матрицу, блок данных заголовка
+/// лежит между метаданными и описателями структуры, а поле ValueCount при задании оси
+/// диапазоном означает число хранимых значений, а не число точек.
 /// </remarks>
 public static class MatrixReader
 {
@@ -85,6 +86,18 @@ public static class MatrixReader
             throw new MatrixFormatException("Матрица не содержит ни одного описателя измерений.");
         }
 
+        var stringBlockSize = cursor.ReadUInt32();
+
+        if (stringBlockSize > content.Length)
+        {
+            throw new MatrixFormatException(
+                $"Размер блока строк заголовка {stringBlockSize} больше всего файла ({content.Length} байт).");
+        }
+
+        // Блок данных заголовка в файле лежит раньше описателей структуры, хотя ТЗ
+        // п. 4.2.1.4 относит его к блоку данных. Порядок взят из образца.
+        var header = ReadHeader(ref cursor, (int)stringBlockSize);
+
         var axes = new AxisDescriptor[blockCount];
 
         for (var index = 0; index < blockCount; index++)
@@ -98,8 +111,70 @@ public static class MatrixReader
                 $"Метаданные разобраны до смещения {cursor.Position}, а по заголовку их размер {metadataSize}.");
         }
 
-        var matrix = ReadData(content, (int)metadataSize, nature, axes, order);
+        var matrix = ReadData(content, (int)metadataSize, nature, axes, order, header);
         return matrix;
+    }
+
+    /// <summary>
+    /// Читает блок данных заголовка: 115 байт полей и следом блок строк
+    /// (ТЗ пп. 4.2.1.5—4.2.1.7).
+    /// </summary>
+    private static MeasurementHeader ReadHeader(ref Cursor cursor, int stringBlockSize)
+    {
+        var start = cursor.Position;
+
+        var header = new MeasurementHeader
+        {
+            MeasurementTypeCode = cursor.ReadByte(),
+            CoordinateSystemCode = cursor.ReadByte(),
+            ChamberTypeCode = cursor.ReadByte(),
+            EquivalentDistance = cursor.ReadSingle(),
+            DateStart = cursor.ReadUInt64(),
+            DateEnd = cursor.ReadUInt64(),
+            AuxPolarizationCode = cursor.ReadByte(),
+            AuxType = cursor.ReadInt32(),
+            AuxIdentifier = cursor.ReadInt32(),
+            Distance = cursor.ReadSingle(),
+            IFBW = cursor.ReadSingle(),
+            P = cursor.ReadSingle(),
+            DataAxisCode = cursor.ReadByte(),
+            MeasurementDistance = cursor.ReadSingle(),
+            ReferencePortBalancing = cursor.ReadByte(),
+            ReferenceChanelBalancing = cursor.ReadByte(),
+            SyncMode = cursor.ReadByte(),
+            SyncModeTypeCode = cursor.ReadByte(),
+            T1 = cursor.ReadUInt32(),
+            T2 = cursor.ReadUInt32(),
+            T3 = cursor.ReadUInt32(),
+            T4 = cursor.ReadUInt32(),
+            T5 = cursor.ReadUInt32(),
+            SW1 = cursor.ReadInt32(),
+            SW2 = cursor.ReadInt32(),
+            SW3 = cursor.ReadInt32(),
+            ChanelStatic = cursor.ReadByte(),
+            PolarizationStatic = cursor.ReadByte(),
+            ZeroX = cursor.ReadSingle(),
+            ZeroY = cursor.ReadSingle(),
+            ZeroZ = cursor.ReadSingle(),
+            ZeroP = cursor.ReadSingle(),
+            ZeroR = cursor.ReadSingle(),
+            ZeroAz = cursor.ReadSingle(),
+            ZeroEl = cursor.ReadSingle(),
+            Strings = cursor.ReadStringBlock(stringBlockSize),
+        };
+
+        var read = cursor.Position - start;
+        var expected = MeasurementHeader.FixedBlockSize + stringBlockSize;
+
+        // Сверка с объявленным размером: если состав полей разойдётся с ТЗ,
+        // ошибка должна проявиться здесь, а не превратиться в сдвиг описателей.
+        if (read != expected)
+        {
+            throw new MatrixFormatException(
+                $"Блок данных заголовка разобран на {read} байт вместо {expected}.");
+        }
+
+        return header;
     }
 
     private static AxisDescriptor ReadAxis(ref Cursor cursor)
@@ -170,7 +245,8 @@ public static class MatrixReader
         int offset,
         DataNature nature,
         AxisDescriptor[] axes,
-        ByteOrderKind order)
+        ByteOrderKind order,
+        MeasurementHeader header)
     {
         var points = 1L;
 
@@ -198,7 +274,7 @@ public static class MatrixReader
             data[index] = cursor.ReadDouble();
         }
 
-        return new MatrixFile(nature, axes, data);
+        return new MatrixFile(nature, axes, data, header);
     }
 
     /// <summary>Последовательное чтение с учётом порядка байт.</summary>
@@ -245,6 +321,30 @@ public static class MatrixReader
                 : BinaryPrimitives.ReadUInt32BigEndian(slice);
         }
 
+        public int ReadInt32() => (int)ReadUInt32();
+
+        public ulong ReadUInt64()
+        {
+            Require(8);
+            var slice = _content.Slice(Position, 8);
+            Position += 8;
+
+            return LittleEndian
+                ? BinaryPrimitives.ReadUInt64LittleEndian(slice)
+                : BinaryPrimitives.ReadUInt64BigEndian(slice);
+        }
+
+        public float ReadSingle()
+        {
+            Require(4);
+            var slice = _content.Slice(Position, 4);
+            Position += 4;
+
+            return LittleEndian
+                ? BinaryPrimitives.ReadSingleLittleEndian(slice)
+                : BinaryPrimitives.ReadSingleBigEndian(slice);
+        }
+
         public double ReadDouble()
         {
             Require(8);
@@ -273,6 +373,41 @@ public static class MatrixReader
             var value = Encoding.UTF8.GetString(_content[start..Position]);
             Position++;
             return value;
+        }
+
+        /// <summary>
+        /// Блок строк заголовка: строки в UTF-8, завершённые нулём, внутри участка
+        /// заданного размера. Нумерация строк — порядковая, с нуля (ТЗ п. 4.2.1.7).
+        /// </summary>
+        public string[] ReadStringBlock(int size)
+        {
+            Require(size);
+            var block = _content.Slice(Position, size);
+            Position += size;
+
+            var strings = new List<string>();
+            var start = 0;
+
+            for (var index = 0; index < block.Length; index++)
+            {
+                if (block[index] != 0)
+                {
+                    continue;
+                }
+
+                strings.Add(Encoding.UTF8.GetString(block[start..index]));
+                start = index + 1;
+            }
+
+            // Хвост без завершающего нуля означает обрезанный блок: такую строку
+            // лучше потерять громко, чем подставить в отчёт обрубок.
+            if (start != block.Length)
+            {
+                throw new MatrixFormatException(
+                    "Последняя строка блока строк заголовка не завершена нулём.");
+            }
+
+            return [.. strings];
         }
 
         private void Require(int count)

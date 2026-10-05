@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\samples\data\aaa.mtx" Link="samples/aaa.mtx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\samples\data\aaa_3.mtx" Link="samples/aaa_3.mtx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

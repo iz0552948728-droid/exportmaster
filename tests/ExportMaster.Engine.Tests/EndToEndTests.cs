@@ -152,7 +152,7 @@ public class EndToEndTests : IDisposable
             Id = "1",
             Sources = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["DATA"] = Path.Combine(AppContext.BaseDirectory, "samples", "aaa.mtx"),
+                ["DATA"] = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_3.mtx"),
             },
         });
     }

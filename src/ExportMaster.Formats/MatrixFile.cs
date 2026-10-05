@@ -11,10 +11,15 @@ public sealed class MatrixFile
     private readonly double[] _data;
     private readonly int[] _strides;
 
-    internal MatrixFile(DataNature nature, IReadOnlyList<AxisDescriptor> axes, double[] data)
+    internal MatrixFile(
+        DataNature nature,
+        IReadOnlyList<AxisDescriptor> axes,
+        double[] data,
+        MeasurementHeader header)
     {
         Nature = nature;
         Axes = axes;
+        Header = header;
         _data = data;
 
         // Последний описатель — ось внутри одномерного массива, поэтому по нему шаг
@@ -35,6 +40,9 @@ public sealed class MatrixFile
 
     /// <summary>Описатели измерений в порядке следования в файле.</summary>
     public IReadOnlyList<AxisDescriptor> Axes { get; }
+
+    /// <summary>Блок данных заголовка: условия измерения (ТЗ п. 4.2.1.6).</summary>
+    public MeasurementHeader Header { get; }
 
     /// <summary>Число точек во всей матрице.</summary>
     public int PointCount { get; }

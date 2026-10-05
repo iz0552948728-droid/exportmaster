@@ -12,7 +12,7 @@ public class GroupIteratorTests
     private static AxisValueFormatter Formatter => new(new OutputSettings());
 
     private static MatrixFile Sample =>
-        MatrixReader.Read(Path.Combine(AppContext.BaseDirectory, "samples", "aaa.mtx"));
+        MatrixReader.Read(Path.Combine(AppContext.BaseDirectory, "samples", "aaa_3.mtx"));
 
     [Fact]
     public void OneSlicePerCombinationOfGroupAxes()

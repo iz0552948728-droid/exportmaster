@@ -12,7 +12,7 @@ namespace ExportMaster.Formats.Tests;
 /// </remarks>
 public class MatrixReaderTests
 {
-    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa.mtx");
+    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_3.mtx");
 
     private static MatrixFile Sample => MatrixReader.Read(SamplePath);
 
@@ -140,7 +140,7 @@ public class MatrixReaderTests
         public void UnknownAxisTypeIsRejected()
         {
             var content = File.ReadAllBytes(SamplePath);
-            content[14] = 9; // тип значения первого описателя
+            content[154] = 9; // тип значения первого описателя
 
             Assert.Throws<MatrixFormatException>(() => MatrixReader.Read(content));
         }
