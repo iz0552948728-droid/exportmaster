@@ -86,15 +86,9 @@ public static class SemanticValidator
             return;
         }
 
-        // Имён 35, перечислять их в сообщении бесполезно; вместо этого подсказываем
-        // написание, если ошибка только в регистре.
-        var suggestion = HeaderFields.Suggest(name);
-
         diagnostics.Add(Diagnostic.Error(
             DiagnosticCode.ExpectedArgument,
-            suggestion is null
-                ? $"'{name}' не является полем заголовка; имена перечислены в ТЗ п. 4.2.1.6."
-                : $"Поле заголовка пишется как '{suggestion}', а не '{name}': регистр учитывается.",
+            $"'{name}' не является полем заголовка; имена перечислены в ТЗ п. 4.2.1.6.",
             argument.Span));
     }
 

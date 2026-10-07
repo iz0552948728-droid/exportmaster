@@ -157,6 +157,10 @@ public class MeasurementHeaderTests
         [InlineData("ZeroAz", HeaderField.ZeroAz)]
         [InlineData("ChanelStatic", HeaderField.ChanelStatic)]
         [InlineData("ChannelStatic", HeaderField.ChanelStatic)]
+        [InlineData("ifbw", HeaderField.IFBW)]
+        [InlineData("measurementtype", HeaderField.MeasurementType)]
+        [InlineData("ZEROAZ", HeaderField.ZeroAz)]
+        [InlineData("channelstatic", HeaderField.ChanelStatic)]
         public void NameFromTheSpecificationIsParsed(string name, HeaderField expected)
         {
             Assert.True(HeaderFields.TryParse(name, out var field));
@@ -164,17 +168,21 @@ public class MeasurementHeaderTests
         }
 
         [Fact]
-        public void CaseIsSignificant()
-        {
-            Assert.False(HeaderFields.TryParse("measurementtype", out _));
-            Assert.Equal("MeasurementType", HeaderFields.Suggest("measurementtype"));
-        }
-
-        [Fact]
-        public void UnknownNameHasNoSuggestion()
+        public void UnknownNameIsRejected()
         {
             Assert.False(HeaderFields.TryParse("POW", out _));
-            Assert.Null(HeaderFields.Suggest("POW"));
+            Assert.False(HeaderFields.TryParse(null, out _));
+            Assert.False(HeaderFields.TryParse(string.Empty, out _));
+        }
+
+        [Theory]
+        [InlineData("5")]
+        [InlineData("MeasurementType, DateStart")]
+        public void NumberOrListIsNotAFieldName(string name)
+        {
+            // Разбор перечисления принял бы и то и другое, подставив поле, которого
+            // в шаблоне никто не называл.
+            Assert.False(HeaderFields.TryParse(name, out _));
         }
     }
 }

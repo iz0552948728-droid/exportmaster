@@ -183,12 +183,12 @@ public class EndToEndTests : IDisposable
     }
 
     [Fact]
-    public void WrongCaseOfFieldNameSuggestsTheRightSpelling()
+    public void FieldNameIsCaseInsensitive()
     {
         var result = Run(Header("{FIELD(\"ifbw\")}"));
 
-        Assert.Equal(2, result.ExitCode);
-        Assert.Contains(result.Diagnostics, d => d.Message.Contains("IFBW", StringComparison.Ordinal));
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("1000", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
     }
 
     [Fact]

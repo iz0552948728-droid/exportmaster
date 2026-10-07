@@ -164,16 +164,7 @@ public sealed class MatrixValueResolver : IValueResolver
 
         if (!HeaderFields.TryParse(name, out var field))
         {
-            // Имён 35, перечислять их в сообщении бесполезно; вместо этого
-            // подсказываем написание, если ошибка только в регистре.
-            var suggestion = HeaderFields.Suggest(name);
-
-            Report(
-                call,
-                suggestion is null
-                    ? $"'{name}' не является полем заголовка; имена перечислены в ТЗ п. 4.2.1.6."
-                    : $"Поле заголовка пишется как '{suggestion}', а не '{name}': регистр учитывается.");
-
+            Report(call, $"'{name}' не является полем заголовка; имена перечислены в ТЗ п. 4.2.1.6.");
             return Unresolved(call, context);
         }
 

@@ -113,7 +113,7 @@ public enum SyncModeKind : byte
     /// <summary>Многоканальный.</summary>
     MultiChannel = 3,
 
-    /// <summary>2П.</summary>
+    /// <summary>2П — двухполяризационный.</summary>
     DualPolarization = 4,
 }
 

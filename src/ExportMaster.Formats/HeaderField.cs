@@ -52,68 +52,46 @@ public enum HeaderField
 public static class HeaderFields
 {
     /// <summary>
-    /// Написания, принимаемые наравне с именем из ТЗ.
+    /// Имена полей и принимаемые написания.
     /// </summary>
     /// <remarks>
-    /// В таблице ТЗ «channel» записано с одной «n». Имя из документа остаётся
-    /// основным — по нему пишут шаблоны, — но правильное написание принимается
-    /// тоже: иначе опечатка документа превращается в ошибку шаблона.
+    /// <para>
+    /// Регистр не учитывается: <c>IFBW</c>, <c>ifbw</c> и <c>Ifbw</c> означают одно поле.
+    /// </para>
+    /// <para>
+    /// В таблице ТЗ «channel» записано с одной «n». Имя из документа остаётся основным —
+    /// по нему пишут шаблоны, — но правильное написание принимается тоже: иначе опечатка
+    /// документа превращается в ошибку шаблона.
+    /// </para>
+    /// <para>
+    /// Поиск идёт по словарю, а не через <see cref="Enum.TryParse{TEnum}(string, bool, out TEnum)"/>:
+    /// тот принял бы и число, и перечисление через запятую, а <c>{FIELD("5")}</c> обязано
+    /// быть ошибкой, а не пятым полем таблицы.
+    /// </para>
     /// </remarks>
-    private static readonly Dictionary<string, HeaderField> Alternates = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, HeaderField> ByName =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ReferenceChannelBalancing"] = HeaderField.ReferenceChanelBalancing,
+            ["ChannelStatic"] = HeaderField.ChanelStatic,
+        };
+
+    static HeaderFields()
     {
-        ["ReferenceChannelBalancing"] = HeaderField.ReferenceChanelBalancing,
-        ["ChannelStatic"] = HeaderField.ChanelStatic,
-    };
+        foreach (var field in Enum.GetValues<HeaderField>())
+        {
+            ByName[field.ToString()] = field;
+        }
+    }
 
     /// <summary>Все имена полей в порядке следования в файле.</summary>
     public static IReadOnlyList<string> Names { get; } =
         Enum.GetValues<HeaderField>().Select(field => field.ToString()).ToArray();
 
-    /// <summary>Разбирает имя поля; регистр учитывается.</summary>
+    /// <summary>Разбирает имя поля; регистр не учитывается.</summary>
     public static bool TryParse(string? name, out HeaderField field)
     {
         field = default;
-
-        if (string.IsNullOrEmpty(name))
-        {
-            return false;
-        }
-
-        if (Enum.TryParse(name, ignoreCase: false, out field) && Enum.IsDefined(field))
-        {
-            return true;
-        }
-
-        return Alternates.TryGetValue(name, out field);
-    }
-
-    /// <summary>
-    /// Имя поля, отличающееся от переданного только регистром, — чтобы в сообщении
-    /// об ошибке подсказать написание, а не выкладывать список из 35 имён.
-    /// </summary>
-    public static string? Suggest(string? name)
-    {
-        if (string.IsNullOrEmpty(name))
-        {
-            return null;
-        }
-
-        foreach (var candidate in Names)
-        {
-            if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
-            {
-                return candidate;
-            }
-        }
-
-        foreach (var candidate in Alternates.Keys)
-        {
-            if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
+        return name is not null && ByName.TryGetValue(name, out field);
     }
 }
