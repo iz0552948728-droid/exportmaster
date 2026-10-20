@@ -1,6 +1,6 @@
 [MDHEADER]
-{FILENAME("meas_", {FIELD("AuxIdentifier")}, "_", {GROUPVALUE("FREQ")}, ".txt")}
-{GROUPBY("FREQ")}
+{FILENAME("meas_", {FIELD("AuxIdentifier")}, "_", {GROUPVALUE("BEAM")}, ".txt")}
+{GROUPBY("BEAM")}
 {ENCODING("UTF-8-BOM")}
 [/MDHEADER]
 Вид измерения;{FIELD("MeasurementType")}
@@ -14,4 +14,4 @@
 Мощность;{FORMAT("0.00 дБм", {FIELD("P")})}
 Режим синхронизации;{FIELD("SyncModeType")}
 
-{TABLE("POS", "DATA", "AMP", "0.00", ";")}
+{TABLE("FREQ", "DATA", "AMP", "0.00", ";")}

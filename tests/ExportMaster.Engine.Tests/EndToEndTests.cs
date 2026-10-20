@@ -16,11 +16,11 @@ public class EndToEndTests : IDisposable
 {
     private const string Template = """
         [MDHEADER]
-        {FILENAME("m_", {GROUPVALUE("FREQ")}, ".txt")}
-        {GROUPBY("FREQ")}
+        {FILENAME("m_", {GROUPVALUE("BEAM")}, ".txt")}
+        {GROUPBY("BEAM")}
         {NEWLINE("LF")}
         [/MDHEADER]
-        {TABLE("POS", "DATA", "AMP", "0.00", ";")}
+        {TABLE("FREQ", "DATA", "AMP", "0.00", ";")}
         """;
 
     private readonly string _directory = Directory.CreateTempSubdirectory("exportmaster-e2e").FullName;
@@ -38,51 +38,55 @@ public class EndToEndTests : IDisposable
         var result = Run();
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal(3, result.Lines.Count);
+        Assert.Equal(2, result.Lines.Count);
         Assert.All(result.Lines, line => Assert.Equal(0, line.Code));
 
+        // Имена лучей приходят из блока строк описателя, а не из номеров точек.
         Assert.Equal(
-            new[] { "m_2.725GHz.txt", "m_2.775GHz.txt", "m_2.825GHz.txt" },
+            new[] { "m_Луч 0.txt", "m_Луч 1.txt" },
             result.Lines.Select(line => line.File));
     }
 
     [Fact]
     public void KeyNamesTheCurrentValueOfTheGroupAxis()
     {
-        Assert.Equal("FREQ=2.725GHz", Run().Lines[0].Key);
+        Assert.Equal("BEAM=Луч 0", Run().Lines[0].Key);
     }
 
     [Fact]
     public void TableHasOneColumnPerColumnAxisPointAndOneRowPerRowAxisPoint()
     {
         Run();
-        var lines = File.ReadAllLines(Path.Combine(_target, "m_2.725GHz.txt"));
+        var lines = File.ReadAllLines(Path.Combine(_target, "m_Луч 0.txt"));
 
-        // POS даёт 53 колонки, DATA — 61 строку; плюс строка и колонка заголовков.
-        Assert.Equal(62, lines.Length);
-        Assert.Equal(54, lines[0].Split(';').Length);
+        // FREQ даёт 3 колонки, DATA — 1801 строку; плюс строка и колонка заголовков.
+        Assert.Equal(1802, lines.Length);
+        Assert.Equal(4, lines[0].Split(';').Length);
     }
 
     [Fact]
     public void HeadersCarryAxisValuesFromTheFile()
     {
         Run();
-        var lines = File.ReadAllLines(Path.Combine(_target, "m_2.725GHz.txt"));
+        var lines = File.ReadAllLines(Path.Combine(_target, "m_Луч 0.txt"));
 
         var columns = lines[0].Split(';');
         Assert.Equal(string.Empty, columns[0]);
-        Assert.Equal("-1.3", columns[1]);
-        Assert.Equal("-1.25", columns[2]);
+        Assert.Equal("20.000GHz", columns[1]);
+        Assert.Equal("30.000GHz", columns[2]);
 
-        Assert.Equal("-1.5", lines[1].Split(';')[0]);
+        Assert.Equal("-90", lines[1].Split(';')[0]);
+        Assert.Equal("-89.9", lines[2].Split(';')[0]);
     }
 
     [Theory]
     // Значения посчитаны из байтов образца независимо: 20*log10(|z|).
-    [InlineData("m_2.725GHz.txt", 1, 1, -63.19)]
-    [InlineData("m_2.725GHz.txt", 1, 2, -61.06)]
-    [InlineData("m_2.775GHz.txt", 1, 1, -62.60)]
-    [InlineData("m_2.825GHz.txt", 1, 1, -58.14)]
+    [InlineData("m_Луч 0.txt", 1, 1, -86.35)]
+    [InlineData("m_Луч 0.txt", 1, 2, -105.38)]
+    [InlineData("m_Луч 0.txt", 1, 3, -92.74)]
+    [InlineData("m_Луч 0.txt", 2, 1, -83.82)]
+    [InlineData("m_Луч 1.txt", 1, 1, -88.77)]
+    [InlineData("m_Луч 1.txt", 1801, 3, -99.96)]
     public void CellsMatchIndependentlyComputedAmplitudes(string file, int row, int column, double expected)
     {
         Run();
@@ -95,11 +99,11 @@ public class EndToEndTests : IDisposable
     [Fact]
     public void GroupByThatDoesNotLeaveTwoDimensionsIsRejected()
     {
-        // В образце три измерения, значит осей разбиения должно быть ровно одна.
+        // В образце три измерения, значит ось разбиения должна быть ровно одна.
         var result = Run("""
             [MDHEADER]
             {FILENAME("a.txt")}
-            {GROUPBY("FREQ", "POS")}
+            {GROUPBY("FREQ", "BEAM")}
             [/MDHEADER]
             текст
             """);
@@ -114,7 +118,7 @@ public class EndToEndTests : IDisposable
         var result = Run("""
             [MDHEADER]
             {FILENAME("a.txt")}
-            {GROUPBY("BEAM")}
+            {GROUPBY("POS")}
             [/MDHEADER]
             текст
             """);
@@ -124,17 +128,15 @@ public class EndToEndTests : IDisposable
 
     [Theory]
     // Поля блока заголовка образца; значения сверены с байтами файла.
-    [InlineData("{FIELD(\"MeasurementType\")}", "БЗП")]
-    [InlineData("{FIELD(\"CoordinateSystem\")}", "XY")]
-    [InlineData("{FIELD(\"ChamberType\")}", "БЗ")]
-    [InlineData("{FIELD(\"DataAxis\")}", "Y")]
+    [InlineData("{FIELD(\"MeasurementType\")}", "Сечение")]
+    [InlineData("{FIELD(\"CoordinateSystem\")}", "ЭлАз")]
+    [InlineData("{FIELD(\"ChamberType\")}", "ДЗ")]
     [InlineData("{FIELD(\"SyncModeType\")}", "Простой")]
-    [InlineData("{FIELD(\"AuxType\")}", "ТМАЗ 2-4")]
-    [InlineData("{FIELD(\"AuxIdentifier\")}", "0526492")]
-    [InlineData("{FIELD(\"IFBW\")}", "1000")]
-    [InlineData("{FIELD(\"P\")}", "13")]
-    [InlineData("{FIELD(\"DateStart\")}", "07.09.2026 15:10:11")]
-    [InlineData("{FIELD(\"MeasurementDistance\")}", "0.0224983 м")]
+    [InlineData("{FIELD(\"AuxType\")}", "1")]
+    [InlineData("{FIELD(\"AuxIdentifier\")}", "1")]
+    [InlineData("{FIELD(\"IFBW\")}", "0")]
+    [InlineData("{FIELD(\"DateStart\")}", "08.10.2026 12:33:13")]
+    [InlineData("{FIELD(\"MeasurementDistance\")}", "0")]
     [InlineData("{FIELD(\"AuxPolarization\")}", "не задано")]
     [InlineData("{FIELD(\"SW1\")}", "не задано")]
     [InlineData("{FIELD(\"ZeroAz\")}", "не задано")]
@@ -153,7 +155,20 @@ public class EndToEndTests : IDisposable
         var result = Run(Header("{FORMAT(\"0.000\", {FIELD(\"MeasurementDistance\")})}"));
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("0.022", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
+        Assert.Equal("0.000", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
+    }
+
+    [Fact]
+    public void CodeOutsideTheSpecifiedEnumerationIsPrintedWithAWarning()
+    {
+        // В образце ось сбора данных равна нулю, а в ТЗ перечислены 1…7.
+        var result = Run(Header("{FIELD(\"DataAxis\")}"));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("0", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("DataAxis", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -162,7 +177,7 @@ public class EndToEndTests : IDisposable
         var result = Run("""
             [MDHEADER]
             {FILENAME("a.txt")}
-            {GROUPBY("FREQ")}
+            {GROUPBY("BEAM")}
             {NEWLINE("LF")}
             {DATEFORMAT("yyyy-MM-dd")}
             [/MDHEADER]
@@ -170,7 +185,7 @@ public class EndToEndTests : IDisposable
             """);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("2026-09-07", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
+        Assert.Equal("2026-10-08", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
     }
 
     [Fact]
@@ -188,7 +203,7 @@ public class EndToEndTests : IDisposable
         var result = Run(Header("{FIELD(\"ifbw\")}"));
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("1000", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
+        Assert.Equal("0", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
     }
 
     [Fact]
@@ -196,19 +211,19 @@ public class EndToEndTests : IDisposable
     {
         // Файл с молчаливо пропущенным значением опаснее отсутствующего: он выглядит
         // рабочим. Поэтому ошибка подстановки обязана дойти до строки отчёта.
-        var result = Run(Header("{FORMAT(\"0.0\", AMP({VALUE(0, 0, 0, 0, 0, 999, 0, 0)}))}"));
+        var result = Run(Header("{FORMAT(\"0.0\", AMP({VALUE(0, 0, 0, 0, 9999, 0, 0, 0)}))}"));
 
         Assert.Equal(1, result.ExitCode);
         Assert.All(result.Lines, line => Assert.Equal(1, line.Code));
         Assert.Empty(Directory.GetFiles(_target));
-        Assert.Contains(result.Diagnostics, d => d.Message.Contains("999", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("9999", StringComparison.Ordinal));
     }
 
     /// <summary>Шаблон из одного поля: выводится только оно.</summary>
     private static string Header(string field) => $$"""
         [MDHEADER]
         {FILENAME("a.txt")}
-        {GROUPBY("FREQ")}
+        {GROUPBY("BEAM")}
         {NEWLINE("LF")}
         [/MDHEADER]
         {{field}}
@@ -224,7 +239,7 @@ public class EndToEndTests : IDisposable
             TemplatePath = path,
             TargetDirectory = _target,
             Id = "1",
-            SourcePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_3.mtx"),
+            SourcePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_5.mtx"),
         });
     }
 

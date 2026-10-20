@@ -177,6 +177,9 @@ public static class MatrixReader
         return header;
     }
 
+    /// <summary>
+    /// Описатель одного измерения (ТЗ п. 4.2.1.2, элемент 5).
+    /// </summary>
     private static AxisDescriptor ReadAxis(ref Cursor cursor)
     {
         var rawType = cursor.ReadByte();
@@ -202,6 +205,30 @@ public static class MatrixReader
             throw new MatrixFormatException($"Ось {type}: неизвестный тип данных списка значений.");
         }
 
+        // Размер массива значений этого описателя. По нему разбор сверяется с файлом,
+        // а не только с собственными представлениями о длине значений.
+        var valuesSize = cursor.ReadUInt32();
+        var valuesStart = cursor.Position;
+
+        var descriptor = ReadAxisValues(ref cursor, type, valueCount, source, valueKind);
+        var read = cursor.Position - valuesStart;
+
+        if (read != valuesSize)
+        {
+            throw new MatrixFormatException(
+                $"Ось {type}: значения разобраны на {read} байт, а по описателю их размер {valuesSize}.");
+        }
+
+        return descriptor;
+    }
+
+    private static AxisDescriptor ReadAxisValues(
+        ref Cursor cursor,
+        Dimensions type,
+        ushort valueCount,
+        AxisValueSource source,
+        AxisValueKind valueKind)
+    {
         if (valueKind == AxisValueKind.Standard)
         {
             return AxisDescriptor.FromStandardList(type, valueCount);

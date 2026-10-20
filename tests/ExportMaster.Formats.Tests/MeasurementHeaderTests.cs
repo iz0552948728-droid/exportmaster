@@ -11,7 +11,7 @@ namespace ExportMaster.Formats.Tests;
 /// </remarks>
 public class MeasurementHeaderTests
 {
-    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_3.mtx");
+    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_5.mtx");
 
     private static MeasurementHeader Sample => MatrixReader.Read(SamplePath).Header;
 
@@ -27,17 +27,15 @@ public class MeasurementHeaderTests
     {
         var header = Sample;
 
-        Assert.Equal(MeasurementKind.PlanarNearField, header.MeasurementType);
-        Assert.Equal(CoordinateSystemKind.XY, header.CoordinateSystem);
-        Assert.Equal(ChamberKind.NearField, header.ChamberType);
-        Assert.Equal(DataAxisKind.Y, header.DataAxis);
+        Assert.Equal(MeasurementKind.Cut, header.MeasurementType);
+        Assert.Equal(CoordinateSystemKind.ElAz, header.CoordinateSystem);
+        Assert.Equal(ChamberKind.FarField, header.ChamberType);
     }
 
     [Theory]
-    [InlineData(HeaderField.MeasurementType, "БЗП")]
-    [InlineData(HeaderField.CoordinateSystem, "XY")]
-    [InlineData(HeaderField.ChamberType, "БЗ")]
-    [InlineData(HeaderField.DataAxis, "Y")]
+    [InlineData(HeaderField.MeasurementType, "Сечение")]
+    [InlineData(HeaderField.CoordinateSystem, "ЭлАз")]
+    [InlineData(HeaderField.ChamberType, "ДЗ")]
     public void EnumeratedFieldsReadAsLabels(HeaderField field, string label)
     {
         var value = Sample.Read(field);
@@ -51,14 +49,14 @@ public class MeasurementHeaderTests
     {
         var header = Sample;
 
-        Assert.Equal(["ТМАЗ 2-4", "0526492"], header.Strings);
+        Assert.Equal(["1", "1"], header.Strings);
         Assert.Equal(0, header.AuxType);
         Assert.Equal(1, header.AuxIdentifier);
     }
 
     [Theory]
-    [InlineData(HeaderField.AuxType, "ТМАЗ 2-4")]
-    [InlineData(HeaderField.AuxIdentifier, "0526492")]
+    [InlineData(HeaderField.AuxType, "1")]
+    [InlineData(HeaderField.AuxIdentifier, "1")]
     public void StringReferencesReadAsStrings(HeaderField field, string text)
     {
         var value = Sample.Read(field);
@@ -88,19 +86,38 @@ public class MeasurementHeaderTests
     {
         var header = Sample;
 
-        Assert.Equal(1000d, header.IFBW);
-        Assert.Equal(13d, header.P);
+        Assert.Equal(0d, header.IFBW);
+        Assert.Equal(0d, header.P);
         Assert.Equal(0d, header.Distance);
         Assert.Equal(0d, header.EquivalentDistance);
-        Assert.Equal(0.022498, header.MeasurementDistance, 6);
+        Assert.Equal(0d, header.MeasurementDistance);
+    }
+
+    [Theory]
+    // Линейные оси дают метры, угловые — градусы.
+    [InlineData(DataAxisKind.X, DistanceUnit.Meters)]
+    [InlineData(DataAxisKind.Y, DistanceUnit.Meters)]
+    [InlineData(DataAxisKind.Az, DistanceUnit.Degrees)]
+    [InlineData(DataAxisKind.El, DistanceUnit.Degrees)]
+    [InlineData(DataAxisKind.Theta, DistanceUnit.Degrees)]
+    public void MeasurementDistanceTakesItsUnitFromTheDataAxis(DataAxisKind axis, DistanceUnit unit)
+    {
+        var header = new MeasurementHeader { DataAxisCode = (byte)axis, MeasurementDistance = 0.5 };
+
+        Assert.Equal(unit, header.MeasurementDistanceUnit);
+        Assert.Equal(unit, header.Read(HeaderField.MeasurementDistance).Unit);
     }
 
     [Fact]
-    public void MeasurementDistanceTakesItsUnitFromTheDataAxis()
+    public void UnknownDataAxisLeavesTheDistanceWithoutAUnit()
     {
-        // Ось сбора данных Y линейная, поэтому дистанция в метрах.
-        Assert.Equal(DistanceUnit.Meters, Sample.MeasurementDistanceUnit);
-        Assert.Equal(DistanceUnit.Meters, Sample.Read(HeaderField.MeasurementDistance).Unit);
+        // В образце ось сбора данных равна нулю — такого кода в ТЗ нет.
+        var header = Sample;
+
+        Assert.Equal(0, header.DataAxisCode);
+        Assert.Null(header.DataAxis);
+        Assert.Equal(HeaderValueKind.UnknownCode, header.Read(HeaderField.DataAxis).Kind);
+        Assert.Equal(DistanceUnit.None, header.MeasurementDistanceUnit);
     }
 
     [Fact]
@@ -109,7 +126,7 @@ public class MeasurementHeaderTests
         var value = Sample.Read(HeaderField.DateStart);
 
         Assert.Equal(HeaderValueKind.Moment, value.Kind);
-        Assert.Equal(1_788_793_811d, value.Number);
+        Assert.Equal(1_791_462_793d, value.Number);
     }
 
     [Fact]

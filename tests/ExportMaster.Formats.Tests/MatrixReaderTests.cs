@@ -12,7 +12,10 @@ namespace ExportMaster.Formats.Tests;
 /// </remarks>
 public class MatrixReaderTests
 {
-    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_3.mtx");
+    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_5.mtx");
+
+    /// <summary>Смещение первого описателя структуры в образце.</summary>
+    private const int FirstDescriptor = 137;
 
     private static MatrixFile Sample => MatrixReader.Read(SamplePath);
 
@@ -24,9 +27,9 @@ public class MatrixReaderTests
     }
 
     [Theory]
-    [InlineData(0, Dimensions.FREQ, 3)]
-    [InlineData(1, Dimensions.POS, 53)]
-    [InlineData(2, Dimensions.DATA, 61)]
+    [InlineData(0, Dimensions.BEAM, 2)]
+    [InlineData(1, Dimensions.FREQ, 3)]
+    [InlineData(2, Dimensions.DATA, 1801)]
     public void AxesMatchTheDescriptors(int index, Dimensions type, int length)
     {
         var axis = Sample.Axes[index];
@@ -39,30 +42,49 @@ public class MatrixReaderTests
     public void RangeAxisLengthIsComputedFromStartEndAndStep()
     {
         // В файле у такой оси ValueCount равен трём — это число хранимых значений,
-        // а не число точек: точек от -1.3 до 1.3 с шагом 0.05 получается 53.
-        var axis = Sample.Axes[1];
+        // а не число точек: точек от -90 до 90 с шагом 0.1 получается 1801.
+        var axis = Sample.Axes[2];
 
         Assert.Equal(AxisValueSource.Range, axis.Source);
-        Assert.Equal(53, axis.Length);
-        Assert.Equal(-1.3, axis.NumberAt(0), 10);
-        Assert.Equal(1.3, axis.NumberAt(52), 10);
+        Assert.Equal(1801, axis.Length);
+        Assert.Equal(-90, axis.NumberAt(0), 10);
+        Assert.Equal(90, axis.NumberAt(1800), 10);
     }
 
     [Fact]
-    public void ListAxisKeepsItsValues()
+    public void RangeAxisDoesNotLeakAccumulatedError()
     {
+        // -90 + 0.1*1 в двоичной арифметике не точное число; двенадцати значащих
+        // цифр хватает, чтобы наружу вышло -89.9, а не -89.90000000000001.
+        Assert.Equal("-89.9", Sample.Axes[2].TextAt(1));
+    }
+
+    [Fact]
+    public void StringAxisKeepsItsValues()
+    {
+        // Имена лучей: ось задана списком строк, а не числами.
         var axis = Sample.Axes[0];
 
         Assert.Equal(AxisValueSource.List, axis.Source);
-        Assert.Equal(2_725_000_000d, axis.NumberAt(0));
-        Assert.Equal(2_775_000_000d, axis.NumberAt(1));
-        Assert.Equal(2_825_000_000d, axis.NumberAt(2));
+        Assert.Equal(AxisValueKind.Strings, axis.ValueKind);
+        Assert.Equal("Луч 0", axis.TextAt(0));
+        Assert.Equal("Луч 1", axis.TextAt(1));
+    }
+
+    [Fact]
+    public void FrequencyRangeIsReadInHertz()
+    {
+        var axis = Sample.Axes[1];
+
+        Assert.Equal(20_000_000_000d, axis.NumberAt(0));
+        Assert.Equal(30_000_000_000d, axis.NumberAt(1));
+        Assert.Equal(40_000_000_000d, axis.NumberAt(2));
     }
 
     [Fact]
     public void PointCountIsProductOfAxisLengths()
     {
-        Assert.Equal(3 * 53 * 61, Sample.PointCount);
+        Assert.Equal(2 * 3 * 1801, Sample.PointCount);
     }
 
     [Fact]
@@ -77,14 +99,14 @@ public class MatrixReaderTests
         // Значение сверено с байтами файла напрямую.
         var value = Sample.ValueAt([0, 0, 0]);
 
-        Assert.Equal(0.000664, value.Real, 6);
-        Assert.Equal(0.000197, value.Imaginary, 6);
+        Assert.Equal(2.36844e-05, value.Real, 10);
+        Assert.Equal(4.19301e-05, value.Imaginary, 10);
     }
 
     [Fact]
     public void LastDescriptorIsTheAxisInsideTheArray()
     {
-        // Соседние точки по последней оси лежат в файле подряд (ТЗ п. 4.2.1.4),
+        // Соседние точки по последней оси лежат в файле подряд (ТЗ п. 4.2.1.8),
         // поэтому переход по ней сдвигает смещение на одну точку.
         var matrix = Sample;
 
@@ -92,21 +114,22 @@ public class MatrixReaderTests
         var alongData = matrix.ValueAt([0, 0, 1]);
 
         Assert.NotEqual(first, alongData);
-        Assert.Equal(0.000347, alongData.Real, 6);
+        Assert.Equal(-1.92659e-06, alongData.Real, 10);
     }
 
     [Fact]
     public void AxisIsFoundByType()
     {
-        Assert.Equal(0, Sample.IndexOfAxis(Dimensions.FREQ));
+        Assert.Equal(0, Sample.IndexOfAxis(Dimensions.BEAM));
+        Assert.Equal(1, Sample.IndexOfAxis(Dimensions.FREQ));
         Assert.Equal(2, Sample.IndexOfAxis(Dimensions.DATA));
-        Assert.Equal(-1, Sample.IndexOfAxis(Dimensions.BEAM));
+        Assert.Equal(-1, Sample.IndexOfAxis(Dimensions.POS));
     }
 
     [Fact]
     public void IndexOutsideAxisIsRejected()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => Sample.ValueAt([0, 0, 61]));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Sample.ValueAt([0, 0, 1801]));
     }
 
     [Fact]
@@ -140,9 +163,21 @@ public class MatrixReaderTests
         public void UnknownAxisTypeIsRejected()
         {
             var content = File.ReadAllBytes(SamplePath);
-            content[154] = 9; // тип значения первого описателя
+            content[FirstDescriptor] = 9; // тип значения первого описателя
 
             Assert.Throws<MatrixFormatException>(() => MatrixReader.Read(content));
+        }
+
+        [Fact]
+        public void ValuesSizeThatDoesNotMatchIsRejected()
+        {
+            // Размер массива значений объявлен в самом описателе; расхождение означает,
+            // что состав значений понят неверно, и следующий описатель поедет.
+            var content = File.ReadAllBytes(SamplePath);
+            content[FirstDescriptor + 5] = 19; // размер значений первого описателя, было 18
+
+            var error = Assert.Throws<MatrixFormatException>(() => MatrixReader.Read(content));
+            Assert.Contains("размер", error.Message, StringComparison.Ordinal);
         }
 
         [Fact]
