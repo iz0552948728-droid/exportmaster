@@ -131,12 +131,15 @@ public class EndToEndTests : IDisposable
     [InlineData("{FIELD(\"MeasurementType\")}", "Сечение")]
     [InlineData("{FIELD(\"CoordinateSystem\")}", "ЭлАз")]
     [InlineData("{FIELD(\"ChamberType\")}", "ДЗ")]
-    [InlineData("{FIELD(\"SyncModeType\")}", "Простой")]
+    [InlineData("{FIELD(\"SyncModeType\")}", "не задано")]
+    [InlineData("{FIELD(\"SyncMode\")}", "не задано")]
+    [InlineData("{FIELD(\"DataAxis\")}", "Az")]
     [InlineData("{FIELD(\"AuxType\")}", "1")]
     [InlineData("{FIELD(\"AuxIdentifier\")}", "1")]
-    [InlineData("{FIELD(\"IFBW\")}", "0")]
+    [InlineData("{FIELD(\"IFBW\")}", "не задано")]
+    [InlineData("{FIELD(\"P\")}", "не задано")]
     [InlineData("{FIELD(\"DateStart\")}", "08.10.2026 12:33:13")]
-    [InlineData("{FIELD(\"MeasurementDistance\")}", "0")]
+    [InlineData("{FIELD(\"MeasurementDistance\")}", "0°")]
     [InlineData("{FIELD(\"AuxPolarization\")}", "не задано")]
     [InlineData("{FIELD(\"SW1\")}", "не задано")]
     [InlineData("{FIELD(\"ZeroAz\")}", "не задано")]
@@ -159,16 +162,14 @@ public class EndToEndTests : IDisposable
     }
 
     [Fact]
-    public void CodeOutsideTheSpecifiedEnumerationIsPrintedWithAWarning()
+    public void UnsetFieldInsideFormatIsPrintedInWords()
     {
-        // В образце ось сбора данных равна нулю, а в ТЗ перечислены 1…7.
-        var result = Run(Header("{FIELD(\"DataAxis\")}"));
+        // ТЗ п. 4.4.7: значение NaN выводится как «не задано». Строка формата при
+        // этом ни при чём — форматировать нечего, и это не ошибка шаблона.
+        var result = Run(Header("{FORMAT(\"0.0 Гц\", {FIELD(\"IFBW\")})}"));
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("0", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("DataAxis", StringComparison.Ordinal));
+        Assert.Equal("не задано", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
     }
 
     [Fact]
@@ -203,7 +204,7 @@ public class EndToEndTests : IDisposable
         var result = Run(Header("{FIELD(\"ifbw\")}"));
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("0", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
+        Assert.Equal("не задано", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
     }
 
     [Fact]
@@ -239,7 +240,7 @@ public class EndToEndTests : IDisposable
             TemplatePath = path,
             TargetDirectory = _target,
             Id = "1",
-            SourcePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_5.mtx"),
+            SourcePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_6.mtx"),
         });
     }
 

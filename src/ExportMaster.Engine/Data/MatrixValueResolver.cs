@@ -130,7 +130,7 @@ public sealed class MatrixValueResolver : IValueResolver
             return Unresolved(call, context);
         }
 
-        return ResolvedValue.FromNumber(value.Real, value.Real.ToString(NumberFormat, context.Settings.NumberFormat));
+        return Number(value.Real, context);
     }
 
     /// <summary>
@@ -275,10 +275,17 @@ public sealed class MatrixValueResolver : IValueResolver
             return ResolvedValue.FromText(string.Empty);
         }
 
-        return ResolvedValue.FromNumber(
-            result.Value,
-            result.Value.ToString(NumberFormat, context.Settings.NumberFormat));
+        return Number(result.Value, context);
     }
+
+    /// <summary>
+    /// Число в виде значения поля. <c>NaN</c> означает отсутствие значения и выводится
+    /// словами, а не записью «NaN» (ТЗ п. 4.4.7).
+    /// </summary>
+    private static ResolvedValue Number(double value, RenderContext context) =>
+        double.IsNaN(value)
+            ? ResolvedValue.Unset(context.Settings.UnsetText)
+            : ResolvedValue.FromNumber(value, value.ToString(NumberFormat, context.Settings.NumberFormat));
 
     /// <summary>
     /// Значение подставить не удалось. В имени файла используется короткая форма:

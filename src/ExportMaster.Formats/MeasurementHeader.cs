@@ -61,7 +61,7 @@ public sealed class MeasurementHeader
     /// <summary>Номер опорного канала балансировки; 255 — балансировки не было.</summary>
     public byte ReferenceChanelBalancing { get; init; }
 
-    /// <summary>Номер режима синхронизации.</summary>
+    /// <summary>Номер режима синхронизации: 1…7, ноль — синхронизации не было либо неизвестно.</summary>
     public byte SyncMode { get; init; }
 
     /// <summary>Код вида режима синхронизации.</summary>
@@ -128,11 +128,10 @@ public sealed class MeasurementHeader
     /// Вид режима синхронизации, если код известен.
     /// </summary>
     /// <remarks>
-    /// Ноля в этом поле быть не может, и в образце он означает незаполненное поле:
-    /// по решению автора ТЗ ноль читается как «Простой».
+    /// Ноль означает «синхронизации не было либо неизвестно» (ТЗ ред. 1.3) и видом
+    /// режима не является.
     /// </remarks>
-    public SyncModeKind? SyncModeType =>
-        SyncModeTypeCode == 0 ? SyncModeKind.Simple : Known<SyncModeKind>(SyncModeTypeCode);
+    public SyncModeKind? SyncModeType => Known<SyncModeKind>(SyncModeTypeCode);
 
     /// <summary>
     /// Единица измерения поля <see cref="MeasurementDistance"/>: её задаёт ось сбора
@@ -169,9 +168,9 @@ public sealed class MeasurementHeader
         HeaderField.MeasurementDistance => Real(MeasurementDistance, MeasurementDistanceUnit),
         HeaderField.ReferencePortBalancing => Optional(ReferencePortBalancing),
         HeaderField.ReferenceChanelBalancing => Optional(ReferenceChanelBalancing),
-        HeaderField.SyncMode => HeaderValue.FromNumber(SyncMode),
+        HeaderField.SyncMode => SyncNumber(SyncMode),
         HeaderField.SyncModeType => Enumerated(
-            SyncModeTypeCode, unsetCode: null, SyncModeType, HeaderLabels.Of),
+            SyncModeTypeCode, unsetCode: 0, SyncModeType, HeaderLabels.Of),
         HeaderField.T1 => HeaderValue.FromNumber(T1),
         HeaderField.T2 => HeaderValue.FromNumber(T2),
         HeaderField.T3 => HeaderValue.FromNumber(T3),
@@ -211,6 +210,17 @@ public sealed class MeasurementHeader
     /// <summary>Вещественное поле: NaN означает «не задано».</summary>
     private static HeaderValue Real(double value, DistanceUnit unit = DistanceUnit.None) =>
         double.IsNaN(value) ? HeaderValue.Unset() : HeaderValue.FromNumber(value, unit);
+
+    /// <summary>
+    /// Номер режима синхронизации: ноль означает «синхронизации не было либо
+    /// неизвестно», значения вне 1…7 перечислением не предусмотрены.
+    /// </summary>
+    private static HeaderValue SyncNumber(byte value) => value switch
+    {
+        0 => HeaderValue.Unset(),
+        <= 7 => HeaderValue.FromNumber(value),
+        _ => HeaderValue.UnknownCode(value),
+    };
 
     /// <summary>Байтовое поле, у которого 255 означает «не было».</summary>
     private static HeaderValue Optional(byte value) =>

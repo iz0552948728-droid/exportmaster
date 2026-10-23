@@ -105,6 +105,13 @@ public sealed class TemplateRenderer
 
         var value = EvaluateArgument(call.Arguments[1], context, diagnostics);
 
+        // Незаданное значение форматированию не подлежит: оно выводится словами
+        // (ТЗ п. 4.4.7). Строка формата тут ни при чём — форматировать нечего.
+        if (value.IsUnset || value.Number is { } missing && double.IsNaN(missing))
+        {
+            return ResolvedValue.Unset(context.Settings.UnsetText);
+        }
+
         return value.Number is { } number
             ? ResolvedValue.FromNumber(number, number.ToString(format.Value, context.Settings.NumberFormat))
             : _resolver.Resolve(call, context);
@@ -179,7 +186,7 @@ public sealed class TemplateRenderer
                 var value = _resolver.Cell(function, columnAxis.Value, column, rowAxis.Value, row, context);
 
                 builder.Append(delimiter).Append(
-                    value.Number is { } number && format is not null
+                    !value.IsUnset && value.Number is { } number && format is not null
                         ? number.ToString(format.Value, context.Settings.NumberFormat)
                         : value.Text);
             }

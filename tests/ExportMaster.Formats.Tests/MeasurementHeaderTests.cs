@@ -11,7 +11,7 @@ namespace ExportMaster.Formats.Tests;
 /// </remarks>
 public class MeasurementHeaderTests
 {
-    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_5.mtx");
+    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_6.mtx");
 
     private static MeasurementHeader Sample => MatrixReader.Read(SamplePath).Header;
 
@@ -86,8 +86,11 @@ public class MeasurementHeaderTests
     {
         var header = Sample;
 
-        Assert.Equal(0d, header.IFBW);
-        Assert.Equal(0d, header.P);
+        // Ширина полосы и мощность не заданы: в файле на их месте NaN.
+        Assert.True(double.IsNaN(header.IFBW));
+        Assert.True(double.IsNaN(header.P));
+        Assert.Equal(HeaderValueKind.Unset, header.Read(HeaderField.IFBW).Kind);
+        Assert.Equal(HeaderValueKind.Unset, header.Read(HeaderField.P).Kind);
         Assert.Equal(0d, header.Distance);
         Assert.Equal(0d, header.EquivalentDistance);
         Assert.Equal(0d, header.MeasurementDistance);
@@ -109,12 +112,21 @@ public class MeasurementHeaderTests
     }
 
     [Fact]
-    public void UnknownDataAxisLeavesTheDistanceWithoutAUnit()
+    public void SampleCollectsDataAlongAnAngularAxis()
     {
-        // В образце ось сбора данных равна нулю — такого кода в ТЗ нет.
         var header = Sample;
 
-        Assert.Equal(0, header.DataAxisCode);
+        Assert.Equal(DataAxisKind.Az, header.DataAxis);
+        Assert.Equal(DistanceUnit.Degrees, header.MeasurementDistanceUnit);
+    }
+
+    [Fact]
+    public void UnknownDataAxisLeavesTheDistanceWithoutAUnit()
+    {
+        // Кода вне перечисления ТЗ быть не должно; если он встретится, единицу
+        // измерения приписывать не из чего.
+        var header = new MeasurementHeader { DataAxisCode = 9, MeasurementDistance = 0.5 };
+
         Assert.Null(header.DataAxis);
         Assert.Equal(HeaderValueKind.UnknownCode, header.Read(HeaderField.DataAxis).Kind);
         Assert.Equal(DistanceUnit.None, header.MeasurementDistanceUnit);
@@ -130,14 +142,29 @@ public class MeasurementHeaderTests
     }
 
     [Fact]
-    public void ZeroSyncModeTypeReadsAsSimple()
+    public void ZeroSyncModeMeansThereWasNoSynchronisation()
     {
-        // Ноля в этом поле быть не может; по решению автора ТЗ он означает «Простой».
+        // ТЗ ред. 1.3: ноль в полях 17 и 18 означает «синхронизации не было либо
+        // неизвестно». Отличить одно от другого файл не позволяет, поэтому поле
+        // выводится как незаданное, а не как «Простой».
         var header = Sample;
 
         Assert.Equal(0, header.SyncModeTypeCode);
-        Assert.Equal(SyncModeKind.Simple, header.SyncModeType);
-        Assert.Equal("Простой", header.Read(HeaderField.SyncModeType).Text);
+        Assert.Null(header.SyncModeType);
+        Assert.Equal(HeaderValueKind.Unset, header.Read(HeaderField.SyncModeType).Kind);
+        Assert.Equal(HeaderValueKind.Unset, header.Read(HeaderField.SyncMode).Kind);
+    }
+
+    [Theory]
+    [InlineData(1, HeaderValueKind.Number)]
+    [InlineData(7, HeaderValueKind.Number)]
+    [InlineData(8, HeaderValueKind.UnknownCode)]
+    public void SyncModeNumberIsLimitedToTheSpecifiedRange(byte code, HeaderValueKind kind)
+    {
+        // Номер режима синхронизации объявлен как 1…7.
+        var header = new MeasurementHeader { SyncMode = code };
+
+        Assert.Equal(kind, header.Read(HeaderField.SyncMode).Kind);
     }
 
     [Fact]

@@ -12,7 +12,7 @@ namespace ExportMaster.Formats.Tests;
 /// </remarks>
 public class MatrixReaderTests
 {
-    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_5.mtx");
+    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_6.mtx");
 
     /// <summary>Смещение первого описателя структуры в образце.</summary>
     private const int FirstDescriptor = 137;

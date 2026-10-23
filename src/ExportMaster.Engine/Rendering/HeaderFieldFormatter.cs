@@ -43,7 +43,7 @@ public sealed class HeaderFieldFormatter
         switch (value.Kind)
         {
             case HeaderValueKind.Unset:
-                return ResolvedValue.FromText(_settings.UnsetText);
+                return ResolvedValue.Unset(_settings.UnsetText);
 
             case HeaderValueKind.Label:
             case HeaderValueKind.Text:
