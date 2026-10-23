@@ -71,7 +71,9 @@ public class EndToEndTests : IDisposable
         var lines = File.ReadAllLines(Path.Combine(_target, "m_Луч 0.txt"));
 
         var columns = lines[0].Split(';');
-        Assert.Equal(string.Empty, columns[0]);
+
+        // Угловая ячейка: ось сбора данных Az, значит строки — градусы.
+        Assert.Equal("°", columns[0]);
         Assert.Equal("20.000GHz", columns[1]);
         Assert.Equal("30.000GHz", columns[2]);
 
@@ -159,6 +161,25 @@ public class EndToEndTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("0.000", File.ReadAllText(Path.Combine(_target, "a.txt")).TrimEnd('\n'));
+    }
+
+    [Fact]
+    public void TableCornerIsEmptyWhenNeitherAxisIsTheDataAxis()
+    {
+        // Единица измерения относится к оси сбора данных; без неё подписывать нечего.
+        var result = Run("""
+            [MDHEADER]
+            {FILENAME("a.txt")}
+            {GROUPBY("DATA")}
+            {NEWLINE("LF")}
+            [/MDHEADER]
+            {TABLE("FREQ", "BEAM", "AMP", "0.00", ";")}
+            """);
+
+        Assert.Equal(0, result.ExitCode);
+        var lines = File.ReadAllLines(Path.Combine(_target, "a.txt"));
+
+        Assert.Equal(string.Empty, lines[0].Split(';')[0]);
     }
 
     [Fact]

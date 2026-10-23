@@ -107,7 +107,7 @@ public class MeasurementHeaderTests
     {
         var header = new MeasurementHeader { DataAxisCode = (byte)axis, MeasurementDistance = 0.5 };
 
-        Assert.Equal(unit, header.MeasurementDistanceUnit);
+        Assert.Equal(unit, header.DataAxisUnit);
         Assert.Equal(unit, header.Read(HeaderField.MeasurementDistance).Unit);
     }
 
@@ -117,7 +117,7 @@ public class MeasurementHeaderTests
         var header = Sample;
 
         Assert.Equal(DataAxisKind.Az, header.DataAxis);
-        Assert.Equal(DistanceUnit.Degrees, header.MeasurementDistanceUnit);
+        Assert.Equal(DistanceUnit.Degrees, header.DataAxisUnit);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class MeasurementHeaderTests
 
         Assert.Null(header.DataAxis);
         Assert.Equal(HeaderValueKind.UnknownCode, header.Read(HeaderField.DataAxis).Kind);
-        Assert.Equal(DistanceUnit.None, header.MeasurementDistanceUnit);
+        Assert.Equal(DistanceUnit.None, header.DataAxisUnit);
     }
 
     [Fact]

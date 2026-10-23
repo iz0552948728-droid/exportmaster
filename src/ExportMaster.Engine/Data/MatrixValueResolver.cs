@@ -65,6 +65,23 @@ public sealed class MatrixValueResolver : IValueResolver
             : new AxisValueFormatter(context.Settings).Format(context.Slice!.Matrix.Axes[position], index);
     }
 
+    /// <summary>
+    /// Единица измерения оси сбора данных, если эта ось в таблице есть.
+    /// </summary>
+    /// <remarks>
+    /// Значения оси <c>DATA</c> — углы или метры, смотря по полю <c>DataAxis</c>
+    /// заголовка. Сами значения остаются числами, а единица стоит один раз,
+    /// в угловой ячейке.
+    /// </remarks>
+    public string TableCorner(Dimensions columnAxis, Dimensions rowAxis, RenderContext context)
+    {
+        _ = context;
+
+        return columnAxis == Dimensions.DATA || rowAxis == Dimensions.DATA
+            ? HeaderLabels.NameOf(_matrix.Header.DataAxisUnit)
+            : string.Empty;
+    }
+
     public ResolvedValue Cell(
         string function,
         Dimensions columnAxis,

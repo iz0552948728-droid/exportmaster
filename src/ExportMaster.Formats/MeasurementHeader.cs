@@ -134,10 +134,10 @@ public sealed class MeasurementHeader
     public SyncModeKind? SyncModeType => Known<SyncModeKind>(SyncModeTypeCode);
 
     /// <summary>
-    /// Единица измерения поля <see cref="MeasurementDistance"/>: её задаёт ось сбора
-    /// данных — угловые оси дают градусы, линейные метры.
+    /// Единица измерения значений оси сбора данных: угловые оси дают градусы,
+    /// линейные метры. Её же наследует поле <see cref="MeasurementDistance"/>.
     /// </summary>
-    public DistanceUnit MeasurementDistanceUnit => DataAxis switch
+    public DistanceUnit DataAxisUnit => DataAxis switch
     {
         DataAxisKind.X or DataAxisKind.Y => DistanceUnit.Meters,
         DataAxisKind.Az or DataAxisKind.El or DataAxisKind.P
@@ -165,7 +165,7 @@ public sealed class MeasurementHeader
         HeaderField.IFBW => Real(IFBW),
         HeaderField.P => Real(P),
         HeaderField.DataAxis => Enumerated(DataAxisCode, unsetCode: null, DataAxis, HeaderLabels.Of),
-        HeaderField.MeasurementDistance => Real(MeasurementDistance, MeasurementDistanceUnit),
+        HeaderField.MeasurementDistance => Real(MeasurementDistance, DataAxisUnit),
         HeaderField.ReferencePortBalancing => Optional(ReferencePortBalancing),
         HeaderField.ReferenceChanelBalancing => Optional(ReferenceChanelBalancing),
         HeaderField.SyncMode => SyncNumber(SyncMode),

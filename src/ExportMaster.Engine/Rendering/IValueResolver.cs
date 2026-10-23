@@ -35,6 +35,15 @@ public interface IValueResolver
     /// <summary>Значение точки оси в виде текста — для заголовков таблицы.</summary>
     string AxisHeader(Dimensions axis, int index, RenderContext context);
 
+    /// <summary>
+    /// Содержимое угловой ячейки таблицы — на пересечении заголовков строк и колонок.
+    /// </summary>
+    /// <remarks>
+    /// Туда идёт единица измерения оси сбора данных: подписывать каждую из полутора
+    /// тысяч строк было бы шумно, а без подписи непонятно, градусы это или метры.
+    /// </remarks>
+    string TableCorner(Dimensions columnAxis, Dimensions rowAxis, RenderContext context);
+
     /// <summary>Значение ячейки таблицы на пересечении колонки и строки.</summary>
     ResolvedValue Cell(
         string function,

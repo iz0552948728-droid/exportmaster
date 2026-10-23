@@ -95,6 +95,16 @@ public sealed class StubValueResolver : IValueResolver
             : $"{axis}#{(index + 1).ToString(CultureInfo.InvariantCulture)}";
     }
 
+    /// <summary>Единицу измерения брать неоткуда: файла данных нет.</summary>
+    public string TableCorner(Dimensions columnAxis, Dimensions rowAxis, RenderContext context)
+    {
+        _ = columnAxis;
+        _ = rowAxis;
+        _ = context;
+
+        return string.Empty;
+    }
+
     /// <summary>
     /// Заглушка ячейки. Номера строки и колонки входят в её состав, чтобы значения
     /// различались: одинаковые числа по всей таблице скрыли бы сбитые колонки.

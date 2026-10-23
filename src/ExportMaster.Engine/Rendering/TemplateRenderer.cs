@@ -168,8 +168,10 @@ public sealed class TemplateRenderer
         var builder = new StringBuilder();
 
         // Строка заголовков: значения оси колонок приходят из данных, вписать их
-        // в шаблон вручную нельзя, поэтому их печатает сама таблица. Ячейка на
-        // пересечении заголовков пуста.
+        // в шаблон вручную нельзя, поэтому их печатает сама таблица. В ячейке на
+        // пересечении заголовков стоит единица измерения оси сбора данных.
+        builder.Append(_resolver.TableCorner(columnAxis.Value, rowAxis.Value, context));
+
         for (var column = 0; column < columns; column++)
         {
             builder.Append(delimiter).Append(_resolver.AxisHeader(columnAxis.Value, column, context));
