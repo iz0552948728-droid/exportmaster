@@ -73,7 +73,7 @@ public class EndToEndTests : IDisposable
         var columns = lines[0].Split(';');
 
         // Угловая ячейка: ось сбора данных Az, значит строки — градусы.
-        Assert.Equal("°", columns[0]);
+        Assert.Equal("град", columns[0]);
         Assert.Equal("20.000GHz", columns[1]);
         Assert.Equal("30.000GHz", columns[2]);
 
@@ -141,7 +141,7 @@ public class EndToEndTests : IDisposable
     [InlineData("{FIELD(\"IFBW\")}", "не задано")]
     [InlineData("{FIELD(\"P\")}", "не задано")]
     [InlineData("{FIELD(\"DateStart\")}", "08.10.2026 12:33:13")]
-    [InlineData("{FIELD(\"MeasurementDistance\")}", "0°")]
+    [InlineData("{FIELD(\"MeasurementDistance\")}", "0 град")]
     [InlineData("{FIELD(\"AuxPolarization\")}", "не задано")]
     [InlineData("{FIELD(\"SW1\")}", "не задано")]
     [InlineData("{FIELD(\"ZeroAz\")}", "не задано")]

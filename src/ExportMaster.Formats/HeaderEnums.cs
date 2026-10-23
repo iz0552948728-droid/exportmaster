@@ -204,13 +204,10 @@ public static class HeaderLabels
         _ => "неопределено",
     };
 
-    /// <summary>
-    /// Единица измерения как суффикс числа: у метров отбивается пробелом,
-    /// у градусов — нет, как принято их записывать.
-    /// </summary>
+    /// <summary>Единица измерения как суффикс числа, через пробел.</summary>
     public static string Of(DistanceUnit unit) => unit switch
     {
-        DistanceUnit.Degrees => "°",
+        DistanceUnit.Degrees => " град",
         DistanceUnit.Meters => " м",
         _ => string.Empty,
     };
