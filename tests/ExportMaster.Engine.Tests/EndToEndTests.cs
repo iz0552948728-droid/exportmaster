@@ -72,8 +72,9 @@ public class EndToEndTests : IDisposable
 
         var columns = lines[0].Split(';');
 
-        // Угловая ячейка: ось сбора данных Az, значит строки — градусы.
-        Assert.Equal("град", columns[0]);
+        // Угловая ячейка: слева единица колонок, справа строк. У частоты
+        // объявленной единицы нет, строки идут по оси сбора данных Az.
+        Assert.Equal("/град", columns[0]);
         Assert.Equal("20.000GHz", columns[1]);
         Assert.Equal("30.000GHz", columns[2]);
 

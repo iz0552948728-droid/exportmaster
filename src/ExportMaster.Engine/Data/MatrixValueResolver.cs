@@ -66,21 +66,28 @@ public sealed class MatrixValueResolver : IValueResolver
     }
 
     /// <summary>
-    /// Единица измерения оси сбора данных, если эта ось в таблице есть.
+    /// Угловая ячейка: единицы измерения колонок и строк через косую черту.
     /// </summary>
     /// <remarks>
-    /// Значения оси <c>DATA</c> — углы или метры, смотря по полю <c>DataAxis</c>
-    /// заголовка. Сами значения остаются числами, а единица стоит один раз,
-    /// в угловой ячейке.
+    /// Одна единица в углу не говорила, к какой из двух осей относится, поэтому
+    /// место разделено: слева от черты колонки, справа строки. Объявленную единицу
+    /// имеет только ось сбора данных — её задаёт поле <c>DataAxis</c> заголовка;
+    /// у остальных осей место пустует. Если не известна ни одна, пуста и вся ячейка:
+    /// одинокая черта ничего не сообщает.
     /// </remarks>
     public string TableCorner(Dimensions columnAxis, Dimensions rowAxis, RenderContext context)
     {
         _ = context;
 
-        return columnAxis == Dimensions.DATA || rowAxis == Dimensions.DATA
-            ? HeaderLabels.NameOf(_matrix.Header.DataAxisUnit)
-            : string.Empty;
+        var columns = UnitOf(columnAxis);
+        var rows = UnitOf(rowAxis);
+
+        return columns.Length == 0 && rows.Length == 0 ? string.Empty : $"{columns}/{rows}";
     }
+
+    /// <summary>Единица измерения значений оси, если она известна.</summary>
+    private string UnitOf(Dimensions axis) =>
+        axis == Dimensions.DATA ? HeaderLabels.NameOf(_matrix.Header.DataAxisUnit) : string.Empty;
 
     public ResolvedValue Cell(
         string function,
