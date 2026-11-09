@@ -10,32 +10,31 @@ namespace ExportMaster.Engine.Tests;
 /// Угловая ячейка таблицы: единицы колонок и строк через косую черту.
 /// </summary>
 /// <remarks>
-/// Образца ред. 1.5 ещё нет, поэтому файл автора формата пересобран под новую
-/// раскладку: в каждый описатель вставлен байт единицы измерения.
+/// Образец ред. 1.5 от автора формата: цилиндрический скан на две поляризации.
+/// Единицы объявлены в описателях — безразмерная поляризация, герцы, метры, градусы.
 /// </remarks>
 public class TableCornerTests
 {
-    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_6.mtx");
+    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa-1.5.mtx");
 
     private static RenderContext Context => new(new OutputSettings());
+
+    private static MatrixValueResolver Resolver => new(MatrixReader.Read(SamplePath));
 
     [Fact]
     public void UnitsOfBothAxesAreSeparatedBySlash()
     {
-        // Луч объявлен в метрах — как ось движения у цилиндрического скана,
-        // позиция данных в градусах.
-        var resolver = Resolver([MeasureUnit.Meters, MeasureUnit.Hertz, MeasureUnit.Degrees]);
-
-        Assert.Equal("м/град", resolver.TableCorner(Dimensions.BEAM, Dimensions.DATA, Context));
-        Assert.Equal("град/м", resolver.TableCorner(Dimensions.DATA, Dimensions.BEAM, Context));
+        // Движение по цилиндру в метрах, сбор данных по углу — в градусах.
+        Assert.Equal("м/град", Resolver.TableCorner(Dimensions.POS, Dimensions.DATA, Context));
+        Assert.Equal("град/м", Resolver.TableCorner(Dimensions.DATA, Dimensions.POS, Context));
     }
 
     [Fact]
     public void AxisWithoutAUnitLeavesItsSideEmpty()
     {
-        var resolver = Resolver([MeasureUnit.None, MeasureUnit.Hertz, MeasureUnit.Degrees]);
-
-        Assert.Equal("/град", resolver.TableCorner(Dimensions.BEAM, Dimensions.DATA, Context));
+        // У поляризации единица объявлена безразмерной.
+        Assert.Equal("/град", Resolver.TableCorner(Dimensions.POL1, Dimensions.DATA, Context));
+        Assert.Equal("м/", Resolver.TableCorner(Dimensions.POS, Dimensions.POL1, Context));
     }
 
     [Fact]
@@ -43,51 +42,13 @@ public class TableCornerTests
     {
         // В описателе объявлены герцы, а значения приведены к гигагерцам —
         // подпись должна совпадать с тем, что написано в заголовках.
-        var resolver = Resolver([MeasureUnit.Meters, MeasureUnit.Hertz, MeasureUnit.Degrees]);
-
-        Assert.Equal("ГГц/град", resolver.TableCorner(Dimensions.FREQ, Dimensions.DATA, Context));
+        Assert.Equal("ГГц/град", Resolver.TableCorner(Dimensions.FREQ, Dimensions.DATA, Context));
     }
 
     [Fact]
     public void CornerIsEmptyWhenNeitherAxisHasAUnit()
     {
         // Одинокая черта ничего не сообщает.
-        var resolver = Resolver([MeasureUnit.None, MeasureUnit.Hertz, MeasureUnit.None]);
-
-        Assert.Equal(string.Empty, resolver.TableCorner(Dimensions.BEAM, Dimensions.DATA, Context));
-        Assert.Equal(string.Empty, resolver.TableCorner(Dimensions.DATA, Dimensions.BEAM, Context));
-    }
-
-    private static MatrixValueResolver Resolver(MeasureUnit[] units) =>
-        new(MatrixReader.Read(WithUnits(units)));
-
-    /// <summary>Пересобирает образец под ред. 1.5, проставляя осям заданные единицы.</summary>
-    private static byte[] WithUnits(MeasureUnit[] units)
-    {
-        var source = File.ReadAllBytes(SamplePath);
-        const int descriptorsStart = 137;
-        var metadataSize = (int)BitConverter.ToUInt32(source, 4);
-
-        var result = new List<byte>(source.Length + units.Length);
-        result.AddRange(source[..descriptorsStart]);
-
-        var position = descriptorsStart;
-
-        foreach (var unit in units)
-        {
-            result.AddRange(source[position..(position + 5)]);
-            result.Add((byte)unit);
-
-            var valuesSize = (int)BitConverter.ToUInt32(source, position + 5);
-            result.AddRange(source[(position + 5)..(position + 9 + valuesSize)]);
-            position += 9 + valuesSize;
-        }
-
-        result.AddRange(source[position..]);
-
-        var content = result.ToArray();
-        BitConverter.GetBytes((uint)(metadataSize + units.Length)).CopyTo(content, 4);
-
-        return content;
+        Assert.Equal(string.Empty, Resolver.TableCorner(Dimensions.POL1, Dimensions.POL1, Context));
     }
 }

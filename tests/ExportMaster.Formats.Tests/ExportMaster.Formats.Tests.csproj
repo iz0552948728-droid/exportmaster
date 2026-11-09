@@ -29,6 +29,7 @@
   <ItemGroup>
     <!-- Образец от автора формата: тесты сверяются с настоящим файлом, а не с выдумкой. -->
     <Content Include="..\..\samples\data\aaa_6.mtx" Link="samples/aaa_6.mtx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\samples\data\aaa-1.5.mtx" Link="samples/aaa-1.5.mtx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

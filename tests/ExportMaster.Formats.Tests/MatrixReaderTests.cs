@@ -197,44 +197,63 @@ public class MatrixReaderTests
 /// Описатели редакции 1.5: единица измерения значений перед размером массива.
 /// </summary>
 /// <remarks>
-/// Настоящего образца ред. 1.5 ещё нет, поэтому проверки идут на файле автора формата,
-/// пересобранном под новую раскладку: в каждый описатель вставлен байт единицы, размер
-/// метаданных увеличен на число описателей. Значения и матрица остаются авторскими —
-/// проверяется ровно то, что раскладка разбирается, а прежняя продолжает читаться.
+/// Образец от автора формата: цилиндрический скан на две поляризации.
 /// </remarks>
 public class DescriptorUnits
 {
-    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa_6.mtx");
+    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "samples", "aaa-1.5.mtx");
 
-    /// <summary>Единицы осей образца в порядке следования: BEAM, FREQ, DATA.</summary>
-    private static readonly MeasureUnit[] Units = [MeasureUnit.None, MeasureUnit.Hertz, MeasureUnit.Degrees];
+    private static readonly string PreviousEditionPath =
+        Path.Combine(AppContext.BaseDirectory, "samples", "aaa_6.mtx");
 
-    [Fact]
-    public void UnitIsReadFromEachDescriptor()
+    private static MatrixFile Sample => MatrixReader.Read(SamplePath);
+
+    [Theory]
+    [InlineData(0, Dimensions.POL1, 2)]
+    [InlineData(1, Dimensions.FREQ, 21)]
+    [InlineData(2, Dimensions.POS, 59)]
+    [InlineData(3, Dimensions.DATA, 33)]
+    public void AxesMatchTheDescriptors(int index, Dimensions type, int length)
     {
-        var matrix = MatrixReader.Read(WithUnits(Units));
+        var axis = Sample.Axes[index];
 
-        Assert.Equal(MeasureUnit.None, matrix.Axes[0].Unit);
-        Assert.Equal(MeasureUnit.Hertz, matrix.Axes[1].Unit);
-        Assert.Equal(MeasureUnit.Degrees, matrix.Axes[2].Unit);
+        Assert.Equal(type, axis.Type);
+        Assert.Equal(length, axis.Length);
+    }
+
+    [Theory]
+    [InlineData(0, MeasureUnit.None)]
+    [InlineData(1, MeasureUnit.Hertz)]
+    [InlineData(2, MeasureUnit.Meters)]
+    [InlineData(3, MeasureUnit.Degrees)]
+    public void UnitIsReadFromEachDescriptor(int index, MeasureUnit unit)
+    {
+        Assert.Equal(unit, Sample.Axes[index].Unit);
     }
 
     [Fact]
-    public void DeclaredUnitWinsOverTheOneDerivedFromTheDataAxis()
+    public void PointCountIsProductOfAxisLengths()
     {
-        // В заголовке образца ось сбора данных Az, то есть градусы; описатель
-        // объявляет метры — верить следует описателю.
-        var matrix = MatrixReader.Read(WithUnits([MeasureUnit.None, MeasureUnit.Hertz, MeasureUnit.Meters]));
+        Assert.Equal(2 * 21 * 59 * 33, Sample.PointCount);
+    }
 
-        Assert.Equal(MeasureUnit.Meters, matrix.UnitOf(Dimensions.DATA));
+    [Fact]
+    public void DeclaredUnitIsUsedEvenWhenTheDataAxisFieldIsNotSet()
+    {
+        // Единица приходит из описателя, а не выводится из поля DataAxis заголовка:
+        // прежнее правило работало только для оси сбора данных и только по догадке.
+        var matrix = Sample;
+
+        Assert.Equal(MeasureUnit.Degrees, matrix.UnitOf(Dimensions.DATA));
+        Assert.Equal(MeasureUnit.Meters, matrix.UnitOf(Dimensions.POS));
     }
 
     [Fact]
     public void UnknownUnitCodeLeavesTheAxisWithoutOne()
     {
         // Список единиц объявлен растущим, поэтому незнакомый код — не отказ читать файл.
-        var content = WithUnits(Units);
-        content[137 + 5] = 42; // единица первого описателя
+        var content = File.ReadAllBytes(SamplePath);
+        content[154 + 5] = 42; // единица первого описателя
 
         Assert.Null(MatrixReader.Read(content).Axes[0].Unit);
     }
@@ -242,7 +261,7 @@ public class DescriptorUnits
     [Fact]
     public void FileOfThePreviousEditionIsStillRead()
     {
-        var matrix = MatrixReader.Read(File.ReadAllBytes(SamplePath));
+        var matrix = MatrixReader.Read(PreviousEditionPath);
 
         Assert.All(matrix.Axes, axis => Assert.Null(axis.Unit));
 
@@ -253,43 +272,9 @@ public class DescriptorUnits
     [Fact]
     public void SizeThatFitsNeitherLayoutIsRejected()
     {
-        var content = WithUnits(Units);
-        content[4] = 231; // размер метаданных, было 233
+        var content = File.ReadAllBytes(SamplePath);
+        content[4] = 255; // размер метаданных, было 270
 
         Assert.Throws<MatrixFormatException>(() => MatrixReader.Read(content));
-    }
-
-    /// <summary>
-    /// Пересобирает образец под ред. 1.5: вставляет байт единицы измерения
-    /// после типа данных списка каждого описателя.
-    /// </summary>
-    private static byte[] WithUnits(MeasureUnit[] units)
-    {
-        var source = File.ReadAllBytes(SamplePath);
-        const int descriptorsStart = 137;
-        var metadataSize = (int)BitConverter.ToUInt32(source, 4);
-
-        var result = new List<byte>(source.Length + units.Length);
-        result.AddRange(source[..descriptorsStart]);
-
-        var position = descriptorsStart;
-
-        foreach (var unit in units)
-        {
-            result.AddRange(source[position..(position + 5)]);
-            result.Add((byte)unit);
-
-            var valuesSize = (int)BitConverter.ToUInt32(source, position + 5);
-            result.AddRange(source[(position + 5)..(position + 9 + valuesSize)]);
-            position += 9 + valuesSize;
-        }
-
-        Assert.Equal(metadataSize, position);
-        result.AddRange(source[position..]);
-
-        var content = result.ToArray();
-        BitConverter.GetBytes((uint)(metadataSize + units.Length)).CopyTo(content, 4);
-
-        return content;
     }
 }
