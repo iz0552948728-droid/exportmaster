@@ -61,7 +61,8 @@ ExportMaster.Formatter.Cli /source samples/data/aaa-1.5.mtx \
 
 - [`docs/template-language.md`](docs/template-language.md) — язык шаблона, командная строка, протокол вывода
 - [`docs/format-spec.md`](docs/format-spec.md) — побайтное описание `.mtx`, расхождения с ТЗ
-- [`docs/tz/`](docs/tz) — само ТЗ: как получено и правленая копия с журналом изменений
+- [`docs/tz/corrections.md`](docs/tz/corrections.md) — правки к ТЗ: что в тексте расходится с файлами и языком шаблона
+- [`docs/tz/`](docs/tz) — само ТЗ: как получено и правленая копия
 - [`CLAUDE.md`](CLAUDE.md) — правила, которые нельзя нарушать, и принятые решения
 
 Образцы в `samples/`: файлы данных от автора формата и шаблоны к ним.
