@@ -30,8 +30,15 @@ public sealed class AxisValueFormatter
         _numberFormat = settings.NumberFormat;
     }
 
-    /// <summary>Значение точки оси в виде текста.</summary>
-    public string Format(AxisDescriptor axis, int index)
+    /// <summary>
+    /// Значение точки оси в виде текста.
+    /// </summary>
+    /// <param name="withUnit">
+    /// Приписывать ли подпись единицы к числу. В заголовках таблицы она не нужна —
+    /// там единица стоит один раз, в угловой ячейке, — а в имени файла и в ключе
+    /// результирующего файла нужна: иначе <c>meas_20.000.txt</c> не говорит ни о чём.
+    /// </param>
+    public string Format(AxisDescriptor axis, int index, bool withUnit = true)
     {
         ArgumentNullException.ThrowIfNull(axis);
 
@@ -44,23 +51,38 @@ public sealed class AxisValueFormatter
 
         if (axis.Type == Dimensions.FREQ)
         {
-            return FormatFrequency(value, _formats.GetValueOrDefault(axis.Type, DefaultFrequencyFormat));
+            var format = _formats.GetValueOrDefault(axis.Type, DefaultFrequencyFormat);
+            var text = (value / FrequencyScale(axis)).ToString(format, _numberFormat);
+
+            return withUnit ? text + FrequencyUnit(axis) : text;
         }
 
-        return _formats.TryGetValue(axis.Type, out var format)
-            ? value.ToString(format, _numberFormat)
+        return _formats.TryGetValue(axis.Type, out var axisFormat)
+            ? value.ToString(axisFormat, _numberFormat)
             : axis.TextAt(index);
     }
 
     /// <summary>
-    /// Частота с подписью: гигагерцы, а ниже одного гигагерца — мегагерцы.
+    /// Подпись единицы частоты для всей оси: гигагерцы, а ниже одного гигагерца
+    /// мегагерцы.
     /// </summary>
     /// <remarks>
-    /// Подпись пишется вплотную к числу: значение попадает и в имя файла,
-    /// а пробелы в именах неудобны.
+    /// Приставка выбирается один раз на ось, а не на каждое значение: столбец, где
+    /// часть заголовков в мегагерцах, а часть в гигагерцах, читать невозможно.
     /// </remarks>
-    private string FormatFrequency(double hertz, string format) =>
-        Math.Abs(hertz) >= 1e9
-            ? (hertz / 1e9).ToString(format, _numberFormat) + "GHz"
-            : (hertz / 1e6).ToString(format, _numberFormat) + "MHz";
+    public static string FrequencyUnit(AxisDescriptor axis) =>
+        FrequencyScale(axis) >= 1e9 ? "ГГц" : "МГц";
+
+    /// <summary>Делитель значений оси частоты: один на всю ось, по наибольшему значению.</summary>
+    private static double FrequencyScale(AxisDescriptor axis)
+    {
+        var highest = 0d;
+
+        for (var index = 0; index < axis.Length; index++)
+        {
+            highest = Math.Max(highest, Math.Abs(axis.NumberAt(index)));
+        }
+
+        return highest >= 1e9 ? 1e9 : 1e6;
+    }
 }

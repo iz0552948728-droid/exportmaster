@@ -39,12 +39,13 @@ public class TableCornerTests
     }
 
     [Fact]
-    public void FrequencyCarriesItsUnitInTheValuesThemselves()
+    public void FrequencyIsLabelledByItsPrefixAndNotByTheDeclaredHertz()
     {
-        // Значения частоты выводятся как 20.000GHz, и «Гц» в углу спорило бы с ними.
+        // В описателе объявлены герцы, а значения приведены к гигагерцам —
+        // подпись должна совпадать с тем, что написано в заголовках.
         var resolver = Resolver([MeasureUnit.Meters, MeasureUnit.Hertz, MeasureUnit.Degrees]);
 
-        Assert.Equal("/град", resolver.TableCorner(Dimensions.FREQ, Dimensions.DATA, Context));
+        Assert.Equal("ГГц/град", resolver.TableCorner(Dimensions.FREQ, Dimensions.DATA, Context));
     }
 
     [Fact]
@@ -54,6 +55,7 @@ public class TableCornerTests
         var resolver = Resolver([MeasureUnit.None, MeasureUnit.Hertz, MeasureUnit.None]);
 
         Assert.Equal(string.Empty, resolver.TableCorner(Dimensions.BEAM, Dimensions.DATA, Context));
+        Assert.Equal(string.Empty, resolver.TableCorner(Dimensions.DATA, Dimensions.BEAM, Context));
     }
 
     private static MatrixValueResolver Resolver(MeasureUnit[] units) =>

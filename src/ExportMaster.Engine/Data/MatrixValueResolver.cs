@@ -60,9 +60,11 @@ public sealed class MatrixValueResolver : IValueResolver
 
         var position = context.Slice?.Matrix.IndexOfAxis(axis) ?? -1;
 
+        // Без подписи единицы: она стоит один раз, в угловой ячейке таблицы.
         return position < 0
             ? string.Empty
-            : new AxisValueFormatter(context.Settings).Format(context.Slice!.Matrix.Axes[position], index);
+            : new AxisValueFormatter(context.Settings)
+                .Format(context.Slice!.Matrix.Axes[position], index, withUnit: false);
     }
 
     /// <summary>
@@ -87,11 +89,23 @@ public sealed class MatrixValueResolver : IValueResolver
     /// Подпись единицы измерения значений оси, если она известна.
     /// </summary>
     /// <remarks>
-    /// Частота исключена намеренно: её значения выводятся с собственной подписью —
-    /// <c>2.725GHz</c>, — и «Гц» в углу спорило бы с содержимым ячеек.
+    /// У частоты подпись берётся не из описателя: в нём объявлены герцы, а значения
+    /// приводятся к удобной приставке — гигагерцам или мегагерцам, — и подпись должна
+    /// совпадать с тем, что написано в заголовках.
     /// </remarks>
-    private string UnitOf(Dimensions axis) =>
-        axis == Dimensions.FREQ ? string.Empty : HeaderLabels.Of(_matrix.UnitOf(axis) ?? MeasureUnit.None);
+    private string UnitOf(Dimensions axis)
+    {
+        var position = _matrix.IndexOfAxis(axis);
+
+        if (position < 0)
+        {
+            return string.Empty;
+        }
+
+        return axis == Dimensions.FREQ
+            ? AxisValueFormatter.FrequencyUnit(_matrix.Axes[position])
+            : HeaderLabels.Of(_matrix.UnitOf(axis) ?? MeasureUnit.None);
+    }
 
     public ResolvedValue Cell(
         string function,

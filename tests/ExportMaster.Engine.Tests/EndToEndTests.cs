@@ -72,11 +72,11 @@ public class EndToEndTests : IDisposable
 
         var columns = lines[0].Split(';');
 
-        // Угловая ячейка: слева единица колонок, справа строк. У частоты
-        // объявленной единицы нет, строки идут по оси сбора данных Az.
-        Assert.Equal("/град", columns[0]);
-        Assert.Equal("20.000GHz", columns[1]);
-        Assert.Equal("30.000GHz", columns[2]);
+        // Угловая ячейка: слева единица колонок, справа строк. В самих заголовках
+        // подписи нет — она стоит один раз, в углу.
+        Assert.Equal("ГГц/град", columns[0]);
+        Assert.Equal("20.000", columns[1]);
+        Assert.Equal("30.000", columns[2]);
 
         Assert.Equal("-90", lines[1].Split(';')[0]);
         Assert.Equal("-89.9", lines[2].Split(';')[0]);
@@ -165,9 +165,9 @@ public class EndToEndTests : IDisposable
     }
 
     [Fact]
-    public void TableCornerIsEmptyWhenNeitherAxisIsTheDataAxis()
+    public void TableCornerShowsOnlyTheUnitsThatAreKnown()
     {
-        // Единица измерения относится к оси сбора данных; без неё подписывать нечего.
+        // У лучей единицы нет, у частоты есть; правая сторона черты пустует.
         var result = Run("""
             [MDHEADER]
             {FILENAME("a.txt")}
@@ -180,7 +180,7 @@ public class EndToEndTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         var lines = File.ReadAllLines(Path.Combine(_target, "a.txt"));
 
-        Assert.Equal(string.Empty, lines[0].Split(';')[0]);
+        Assert.Equal("ГГц/", lines[0].Split(';')[0]);
     }
 
     [Fact]

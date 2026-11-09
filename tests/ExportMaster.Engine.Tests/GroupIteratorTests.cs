@@ -29,8 +29,9 @@ public class GroupIteratorTests
     {
         var slices = GroupIterator.Enumerate(Sample, [Dimensions.FREQ]).ToList();
 
-        Assert.Equal("FREQ=20.000GHz", slices[0].Key(Formatter));
-        Assert.Equal("FREQ=40.000GHz", slices[2].Key(Formatter));
+        // В ключе и в имени файла подпись нужна: 20.000 само по себе ни о чём не говорит.
+        Assert.Equal("FREQ=20.000ГГц", slices[0].Key(Formatter));
+        Assert.Equal("FREQ=40.000ГГц", slices[2].Key(Formatter));
     }
 
     [Fact]
@@ -39,8 +40,8 @@ public class GroupIteratorTests
         // Порядок задаёт шаблон: первая ось списка внешняя.
         var slices = GroupIterator.Enumerate(Sample, [Dimensions.FREQ, Dimensions.BEAM]).Take(4).ToList();
 
-        Assert.Equal("FREQ=20.000GHz;BEAM=Луч 0", slices[0].Key(Formatter));
-        Assert.Equal("FREQ=20.000GHz;BEAM=Луч 1", slices[1].Key(Formatter));
+        Assert.Equal("FREQ=20.000ГГц;BEAM=Луч 0", slices[0].Key(Formatter));
+        Assert.Equal("FREQ=20.000ГГц;BEAM=Луч 1", slices[1].Key(Formatter));
     }
 
     [Fact]
@@ -66,7 +67,7 @@ public class GroupIteratorTests
 
         Assert.Equal(1, slice.IndexOf(Dimensions.FREQ));
         Assert.Equal(-1, slice.IndexOf(Dimensions.POS));
-        Assert.Equal("30.000GHz", Formatter.Format(slice.DescriptorOf(Dimensions.FREQ)!.Value.Descriptor, 1));
+        Assert.Equal("30.000ГГц", Formatter.Format(slice.DescriptorOf(Dimensions.FREQ)!.Value.Descriptor, 1));
         Assert.Null(slice.DescriptorOf(Dimensions.POS));
     }
 }

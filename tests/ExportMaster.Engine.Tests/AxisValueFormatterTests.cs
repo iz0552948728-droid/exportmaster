@@ -9,18 +9,18 @@ namespace ExportMaster.Engine.Tests;
 public class AxisValueFormatterTests
 {
     [Theory]
-    [InlineData(2_725_000_000d, "2.725GHz")]
-    [InlineData(1_000_000_000d, "1.000GHz")]
-    [InlineData(12_500_000_000d, "12.500GHz")]
+    [InlineData(2_725_000_000d, "2.725ГГц")]
+    [InlineData(1_000_000_000d, "1.000ГГц")]
+    [InlineData(12_500_000_000d, "12.500ГГц")]
     public void GigahertzFromOneGigahertzAndAbove(double hertz, string expected)
     {
         Assert.Equal(expected, Format(Dimensions.FREQ, hertz));
     }
 
     [Theory]
-    [InlineData(999_000_000d, "999.000MHz")]
-    [InlineData(433_920_000d, "433.920MHz")]
-    [InlineData(1_500_000d, "1.500MHz")]
+    [InlineData(999_000_000d, "999.000МГц")]
+    [InlineData(433_920_000d, "433.920МГц")]
+    [InlineData(1_500_000d, "1.500МГц")]
     public void MegahertzBelowOneGigahertz(double hertz, string expected)
     {
         Assert.Equal(expected, Format(Dimensions.FREQ, hertz));
@@ -29,9 +29,9 @@ public class AxisValueFormatterTests
     [Fact]
     public void NumberOfDecimalsComesFromTheTemplate()
     {
-        Assert.Equal("2.73GHz", Format(Dimensions.FREQ, 2_725_000_000d, "0.00"));
-        Assert.Equal("2.7GHz", Format(Dimensions.FREQ, 2_725_000_000d, "0.0"));
-        Assert.Equal("3GHz", Format(Dimensions.FREQ, 2_725_000_000d, "0"));
+        Assert.Equal("2.73ГГц", Format(Dimensions.FREQ, 2_725_000_000d, "0.00"));
+        Assert.Equal("2.7ГГц", Format(Dimensions.FREQ, 2_725_000_000d, "0.0"));
+        Assert.Equal("3ГГц", Format(Dimensions.FREQ, 2_725_000_000d, "0"));
     }
 
     [Fact]
@@ -40,6 +40,28 @@ public class AxisValueFormatterTests
         // Единицы известны только для частоты; остальные оси выводятся как записаны.
         Assert.Equal("-1.3", Format(Dimensions.POS, -1.3));
         Assert.Equal("-1.300", Format(Dimensions.POS, -1.3, "0.000"));
+    }
+
+    [Fact]
+    public void PrefixIsChosenOnceForTheWholeAxis()
+    {
+        // Столбец, где часть заголовков в мегагерцах, а часть в гигагерцах,
+        // читать невозможно, поэтому приставку выбирает наибольшее значение оси.
+        var axis = AxisDescriptor.FromNumbers(Dimensions.FREQ, [900_000_000d, 1_100_000_000d]);
+        var formatter = new AxisValueFormatter(new OutputSettings());
+
+        Assert.Equal("ГГц", AxisValueFormatter.FrequencyUnit(axis));
+        Assert.Equal("0.900ГГц", formatter.Format(axis, 0));
+        Assert.Equal("1.100ГГц", formatter.Format(axis, 1));
+    }
+
+    [Fact]
+    public void UnitIsOmittedWhereItStandsInTheTableCorner()
+    {
+        var axis = AxisDescriptor.FromNumbers(Dimensions.FREQ, [2_725_000_000d]);
+        var formatter = new AxisValueFormatter(new OutputSettings());
+
+        Assert.Equal("2.725", formatter.Format(axis, 0, withUnit: false));
     }
 
     [Fact]
