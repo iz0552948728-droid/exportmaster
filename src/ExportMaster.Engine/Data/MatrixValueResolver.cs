@@ -70,10 +70,8 @@ public sealed class MatrixValueResolver : IValueResolver
     /// </summary>
     /// <remarks>
     /// Одна единица в углу не говорила, к какой из двух осей относится, поэтому
-    /// место разделено: слева от черты колонки, справа строки. Объявленную единицу
-    /// имеет только ось сбора данных — её задаёт поле <c>DataAxis</c> заголовка;
-    /// у остальных осей место пустует. Если не известна ни одна, пуста и вся ячейка:
-    /// одинокая черта ничего не сообщает.
+    /// место разделено: слева от черты колонки, справа строки. Если не известна
+    /// ни одна, пуста и вся ячейка: одинокая черта ничего не сообщает.
     /// </remarks>
     public string TableCorner(Dimensions columnAxis, Dimensions rowAxis, RenderContext context)
     {
@@ -85,9 +83,15 @@ public sealed class MatrixValueResolver : IValueResolver
         return columns.Length == 0 && rows.Length == 0 ? string.Empty : $"{columns}/{rows}";
     }
 
-    /// <summary>Единица измерения значений оси, если она известна.</summary>
+    /// <summary>
+    /// Подпись единицы измерения значений оси, если она известна.
+    /// </summary>
+    /// <remarks>
+    /// Частота исключена намеренно: её значения выводятся с собственной подписью —
+    /// <c>2.725GHz</c>, — и «Гц» в углу спорило бы с содержимым ячеек.
+    /// </remarks>
     private string UnitOf(Dimensions axis) =>
-        axis == Dimensions.DATA ? HeaderLabels.NameOf(_matrix.Header.DataAxisUnit) : string.Empty;
+        axis == Dimensions.FREQ ? string.Empty : HeaderLabels.Of(_matrix.UnitOf(axis) ?? MeasureUnit.None);
 
     public ResolvedValue Cell(
         string function,

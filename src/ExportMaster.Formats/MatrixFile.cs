@@ -50,6 +50,38 @@ public sealed class MatrixFile
     /// <summary>Число значений <see cref="double"/> на точку: 1 или 2.</summary>
     public int ValuesPerPoint => Nature == DataNature.Complex ? 2 : 1;
 
+    /// <summary>
+    /// Единица измерения значений оси.
+    /// </summary>
+    /// <remarks>
+    /// Берётся из описателя оси. У файлов редакций до 1.4 описатель её не несёт,
+    /// и для оси сбора данных она выводится из поля <c>DataAxis</c> заголовка —
+    /// так эти файлы продолжают читаться без потери подписи.
+    /// </remarks>
+    public MeasureUnit? UnitOf(Dimensions axis)
+    {
+        var position = IndexOfAxis(axis);
+
+        if (position < 0)
+        {
+            return null;
+        }
+
+        if (Axes[position].Unit is { } declared)
+        {
+            return declared;
+        }
+
+        return axis == Dimensions.DATA
+            ? Header.DataAxisUnit switch
+            {
+                DistanceUnit.Degrees => MeasureUnit.Degrees,
+                DistanceUnit.Meters => MeasureUnit.Meters,
+                _ => null,
+            }
+            : null;
+    }
+
     /// <summary>Ищет описатель по типу оси; возвращает −1, если такой оси в файле нет.</summary>
     public int IndexOfAxis(Dimensions axis)
     {

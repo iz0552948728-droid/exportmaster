@@ -21,12 +21,14 @@ public sealed class AxisDescriptor
         double[]? numbers,
         string[]? strings,
         double start,
-        double step)
+        double step,
+        MeasureUnit? unit = null)
     {
         Type = type;
         Length = length;
         Source = source;
         ValueKind = valueKind;
+        Unit = unit;
         _numbers = numbers;
         _strings = strings;
         _start = start;
@@ -49,6 +51,19 @@ public sealed class AxisDescriptor
     public AxisValueSource Source { get; }
 
     public AxisValueKind ValueKind { get; }
+
+    /// <summary>
+    /// Единица измерения значений оси (ТЗ п. 4.2.1.2, элемент 5.5).
+    /// </summary>
+    /// <remarks>
+    /// Пусто у файлов редакций до 1.4, где этого поля в описателе нет, и у кодов,
+    /// которых нет в перечислении: список единиц объявлен растущим.
+    /// </remarks>
+    public MeasureUnit? Unit { get; }
+
+    /// <summary>Тот же описатель с проставленной единицей измерения.</summary>
+    internal AxisDescriptor WithUnit(MeasureUnit? unit) =>
+        new(Type, Length, Source, ValueKind, _numbers, _strings, _start, _step, unit);
 
     /// <summary>Ось, заданная диапазоном: начало, конец и шаг.</summary>
     public static AxisDescriptor FromRange(Dimensions type, double start, double end, double step)

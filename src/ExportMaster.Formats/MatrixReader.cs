@@ -98,18 +98,7 @@ public static class MatrixReader
         // п. 4.2.1.4 относит его к блоку данных. Порядок взят из образца.
         var header = ReadHeader(ref cursor, (int)stringBlockSize);
 
-        var axes = new AxisDescriptor[blockCount];
-
-        for (var index = 0; index < blockCount; index++)
-        {
-            axes[index] = ReadAxis(ref cursor);
-        }
-
-        if (cursor.Position != metadataSize)
-        {
-            throw new MatrixFormatException(
-                $"Метаданные разобраны до смещения {cursor.Position}, а по заголовку их размер {metadataSize}.");
-        }
+        var axes = ReadAxes(content, cursor.Position, (int)metadataSize, (int)blockCount, order);
 
         var matrix = ReadData(content, (int)metadataSize, nature, axes, order, header);
         return matrix;
@@ -178,9 +167,89 @@ public static class MatrixReader
     }
 
     /// <summary>
+    /// Разбирает описатели структуры, определяя раскладку по объявленному концу метаданных.
+    /// </summary>
+    /// <remarks>
+    /// В ред. 1.4 в описатель добавлен байт единицы измерения, и файлы прежних редакций
+    /// короче ровно на один байт в каждом описателе. Поэтому на объявленное смещение конца
+    /// метаданных может попасть лишь одна из двух раскладок: длины различаются на число
+    /// описателей, то есть минимум на единицу. Если подходят обе — чего не должно случаться —
+    /// файл не читается: гадать о раскладке нельзя, ошибка здесь не уронит разбор,
+    /// а сдвинет значения осей.
+    /// </remarks>
+    private static AxisDescriptor[] ReadAxes(
+        ReadOnlySpan<byte> content,
+        int start,
+        int metadataSize,
+        int blockCount,
+        ByteOrderKind order)
+    {
+        var withUnit = TryReadAxes(content, start, metadataSize, blockCount, order, withUnit: true, out var newer);
+        var withoutUnit = TryReadAxes(content, start, metadataSize, blockCount, order, withUnit: false, out var older);
+
+        if (withUnit && withoutUnit)
+        {
+            throw new MatrixFormatException(
+                "Описатели структуры читаются и с единицей измерения, и без неё: раскладка неоднозначна.");
+        }
+
+        if (withUnit)
+        {
+            return newer!;
+        }
+
+        if (withoutUnit)
+        {
+            return older!;
+        }
+
+        // Сообщение про новую раскладку: она основная, а прежняя поддерживается
+        // только ради уже снятых файлов.
+        TryReadAxes(content, start, metadataSize, blockCount, order, withUnit: true, out _, rethrow: true);
+
+        throw new MatrixFormatException(
+            $"Описатели структуры не укладываются в объявленный размер метаданных {metadataSize}.");
+    }
+
+    private static bool TryReadAxes(
+        ReadOnlySpan<byte> content,
+        int start,
+        int metadataSize,
+        int blockCount,
+        ByteOrderKind order,
+        bool withUnit,
+        out AxisDescriptor[]? axes,
+        bool rethrow = false)
+    {
+        axes = null;
+        var parsed = new AxisDescriptor[blockCount];
+        var cursor = new Cursor(content, start) { LittleEndian = order == ByteOrderKind.LittleEndian };
+
+        try
+        {
+            for (var index = 0; index < blockCount; index++)
+            {
+                parsed[index] = ReadAxis(ref cursor, withUnit);
+            }
+        }
+        catch (MatrixFormatException) when (!rethrow)
+        {
+            return false;
+        }
+
+        if (cursor.Position != metadataSize)
+        {
+            return false;
+        }
+
+        axes = parsed;
+        return true;
+    }
+
+    /// <summary>
     /// Описатель одного измерения (ТЗ п. 4.2.1.2, элемент 5).
     /// </summary>
-    private static AxisDescriptor ReadAxis(ref Cursor cursor)
+    private static AxisDescriptor ReadAxis(ref Cursor cursor, bool withUnit)
     {
         var rawType = cursor.ReadByte();
 
@@ -205,6 +274,19 @@ public static class MatrixReader
             throw new MatrixFormatException($"Ось {type}: неизвестный тип данных списка значений.");
         }
 
+        // Единица измерения значений появилась в ред. 1.4; в файлах прежних редакций
+        // этого байта нет, и ось остаётся без объявленной единицы.
+        MeasureUnit? unit = null;
+
+        if (withUnit)
+        {
+            var rawUnit = cursor.ReadByte();
+
+            // Список единиц будет расти (ТЗ п. 4.2.1.2, элемент 5.5), поэтому незнакомый
+            // код — не отказ читать файл: ось просто останется без подписи.
+            unit = Enum.IsDefined((MeasureUnit)rawUnit) ? (MeasureUnit)rawUnit : null;
+        }
+
         // Размер массива значений этого описателя. По нему разбор сверяется с файлом,
         // а не только с собственными представлениями о длине значений.
         var valuesSize = cursor.ReadUInt32();
@@ -219,7 +301,7 @@ public static class MatrixReader
                 $"Ось {type}: значения разобраны на {read} байт, а по описателю их размер {valuesSize}.");
         }
 
-        return descriptor;
+        return descriptor.WithUnit(unit);
     }
 
     private static AxisDescriptor ReadAxisValues(
