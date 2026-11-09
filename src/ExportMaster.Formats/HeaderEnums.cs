@@ -43,8 +43,37 @@ public enum CoordinateSystemKind : byte
     /// <summary>Вращение по поляризации.</summary>
     PolarizationRotation = 6,
 
+    /// <summary>Цилиндр.</summary>
+    Cylinder = 7,
+
     /// <summary>Неопределено.</summary>
     Undefined = 255,
+}
+
+/// <summary>
+/// Единица измерения значений оси (ТЗ п. 4.2.1.2, элемент 5.5).
+/// </summary>
+/// <remarks>
+/// Задаётся в описателе каждой оси, то есть приходит из файла, а не выводится
+/// из вида измерения. ТЗ оговаривает, что список будет расти, поэтому неизвестный
+/// код не является ошибкой чтения: ось просто остаётся без подписи.
+/// </remarks>
+public enum MeasureUnit : byte
+{
+    /// <summary>Градусы.</summary>
+    Degrees = 0,
+
+    /// <summary>Метры.</summary>
+    Meters = 1,
+
+    /// <summary>Герцы.</summary>
+    Hertz = 2,
+
+    /// <summary>Секунды.</summary>
+    Seconds = 3,
+
+    /// <summary>Безразмерная величина.</summary>
+    None = 255,
 }
 
 /// <summary>Тип камеры (ТЗ п. 4.2.1.6, поле 3).</summary>
@@ -159,6 +188,7 @@ public static class HeaderLabels
 
     public static string Of(CoordinateSystemKind value) => value switch
     {
+        CoordinateSystemKind.Cylinder => "Цилиндр",
         CoordinateSystemKind.XY => "XY",
         CoordinateSystemKind.AzEl => "АзЭл",
         CoordinateSystemKind.ElAz => "ЭлАз",
@@ -202,6 +232,19 @@ public static class HeaderLabels
         SyncModeKind.MultiChannel => "Многоканальный",
         SyncModeKind.DualPolarization => "2П",
         _ => "неопределено",
+    };
+
+    /// <summary>
+    /// Подпись единицы измерения оси — для угловой ячейки таблицы.
+    /// Безразмерная величина и неизвестный код подписи не получают.
+    /// </summary>
+    public static string Of(MeasureUnit unit) => unit switch
+    {
+        MeasureUnit.Degrees => "град",
+        MeasureUnit.Meters => "м",
+        MeasureUnit.Hertz => "Гц",
+        MeasureUnit.Seconds => "с",
+        _ => string.Empty,
     };
 
     /// <summary>Единица измерения как суффикс числа, через пробел.</summary>
