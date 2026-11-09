@@ -9,18 +9,18 @@ namespace ExportMaster.Engine.Tests;
 public class AxisValueFormatterTests
 {
     [Theory]
-    [InlineData(2_725_000_000d, "2.725ГГц")]
-    [InlineData(1_000_000_000d, "1.000ГГц")]
-    [InlineData(12_500_000_000d, "12.500ГГц")]
+    [InlineData(2_725_000_000d, "2.725GHz")]
+    [InlineData(1_000_000_000d, "1.000GHz")]
+    [InlineData(12_500_000_000d, "12.500GHz")]
     public void GigahertzFromOneGigahertzAndAbove(double hertz, string expected)
     {
         Assert.Equal(expected, Format(Dimensions.FREQ, hertz));
     }
 
     [Theory]
-    [InlineData(999_000_000d, "999.000МГц")]
-    [InlineData(433_920_000d, "433.920МГц")]
-    [InlineData(1_500_000d, "1.500МГц")]
+    [InlineData(999_000_000d, "999.000MHz")]
+    [InlineData(433_920_000d, "433.920MHz")]
+    [InlineData(1_500_000d, "1.500MHz")]
     public void MegahertzBelowOneGigahertz(double hertz, string expected)
     {
         Assert.Equal(expected, Format(Dimensions.FREQ, hertz));
@@ -29,9 +29,9 @@ public class AxisValueFormatterTests
     [Fact]
     public void NumberOfDecimalsComesFromTheTemplate()
     {
-        Assert.Equal("2.73ГГц", Format(Dimensions.FREQ, 2_725_000_000d, "0.00"));
-        Assert.Equal("2.7ГГц", Format(Dimensions.FREQ, 2_725_000_000d, "0.0"));
-        Assert.Equal("3ГГц", Format(Dimensions.FREQ, 2_725_000_000d, "0"));
+        Assert.Equal("2.73GHz", Format(Dimensions.FREQ, 2_725_000_000d, "0.00"));
+        Assert.Equal("2.7GHz", Format(Dimensions.FREQ, 2_725_000_000d, "0.0"));
+        Assert.Equal("3GHz", Format(Dimensions.FREQ, 2_725_000_000d, "0"));
     }
 
     [Fact]
@@ -50,9 +50,11 @@ public class AxisValueFormatterTests
         var axis = AxisDescriptor.FromNumbers(Dimensions.FREQ, [900_000_000d, 1_100_000_000d]);
         var formatter = new AxisValueFormatter(new OutputSettings());
 
+        // В углу таблицы подпись русская, у значения латинская: имя файла уходит
+        // в чужие системы, а отчёт читает человек.
         Assert.Equal("ГГц", AxisValueFormatter.FrequencyUnit(axis));
-        Assert.Equal("0.900ГГц", formatter.Format(axis, 0));
-        Assert.Equal("1.100ГГц", formatter.Format(axis, 1));
+        Assert.Equal("0.900GHz", formatter.Format(axis, 0));
+        Assert.Equal("1.100GHz", formatter.Format(axis, 1));
     }
 
     [Fact]

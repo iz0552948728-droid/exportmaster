@@ -54,7 +54,7 @@ public sealed class AxisValueFormatter
             var format = _formats.GetValueOrDefault(axis.Type, DefaultFrequencyFormat);
             var text = (value / FrequencyScale(axis)).ToString(format, _numberFormat);
 
-            return withUnit ? text + FrequencyUnit(axis) : text;
+            return withUnit ? text + FrequencySuffix(axis) : text;
         }
 
         return _formats.TryGetValue(axis.Type, out var axisFormat)
@@ -63,8 +63,8 @@ public sealed class AxisValueFormatter
     }
 
     /// <summary>
-    /// Подпись единицы частоты для всей оси: гигагерцы, а ниже одного гигагерца
-    /// мегагерцы.
+    /// Подпись единицы частоты для угловой ячейки таблицы: гигагерцы, а ниже одного
+    /// гигагерца мегагерцы.
     /// </summary>
     /// <remarks>
     /// Приставка выбирается один раз на ось, а не на каждое значение: столбец, где
@@ -72,6 +72,16 @@ public sealed class AxisValueFormatter
     /// </remarks>
     public static string FrequencyUnit(AxisDescriptor axis) =>
         FrequencyScale(axis) >= 1e9 ? "ГГц" : "МГц";
+
+    /// <summary>
+    /// Приписка к самому значению — для имени файла и ключа результирующего файла.
+    /// </summary>
+    /// <remarks>
+    /// Латиницей, в отличие от подписи в угловой ячейке: имя файла уходит в чужие
+    /// системы и в командные сценарии, а отчёт читает человек.
+    /// </remarks>
+    private static string FrequencySuffix(AxisDescriptor axis) =>
+        FrequencyScale(axis) >= 1e9 ? "GHz" : "MHz";
 
     /// <summary>Делитель значений оси частоты: один на всю ось, по наибольшему значению.</summary>
     private static double FrequencyScale(AxisDescriptor axis)
