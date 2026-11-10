@@ -57,12 +57,30 @@ ExportMaster.Formatter.Cli /source samples/data/aaa-1.5.mtx \
 Зависимости строго вниз: `Cli` → `Engine` → `Template` / `Formats` → `Core`.
 У каждого проекта свой проект тестов в `tests/`.
 
+## Передача пользователю
+
+Тому, кто будет только пользоваться программой, собирают один самодостаточный файл —
+среда исполнения входит внутрь, ставить .NET не нужно:
+
+```bash
+dotnet publish src/ExportMaster.Formatter.Cli -c Release -r win-x64 \
+               --self-contained true -p:PublishSingleFile=true -o publish
+```
+
+В `publish` появится `ExportMaster.Formatter.Cli.exe` (около 67 МБ) и файлы `.pdb` —
+отладочные символы, пользователю не нужны. Вместе с программой передают шаблон
+и [инструкцию](docs/user-guide.md).
+
+Если на машине уже стоит .NET 8 Runtime, хватит обычной публикации — выйдет около
+300 КБ: `dotnet publish src/ExportMaster.Formatter.Cli -c Release -o publish`.
+
 ## Документация
 
 - [`docs/template-language.md`](docs/template-language.md) — язык шаблона, командная строка, протокол вывода
 - [`docs/format-spec.md`](docs/format-spec.md) — побайтное описание `.mtx`, расхождения с ТЗ
 - [`docs/tz/corrections.md`](docs/tz/corrections.md) — правки к ТЗ: что в тексте расходится с файлами и языком шаблона
 - [`docs/tz/`](docs/tz) — само ТЗ: как получено и правленая копия
+- [`docs/user-guide.md`](docs/user-guide.md) — инструкция для того, кто программу только запускает
 - [`CLAUDE.md`](CLAUDE.md) — правила, которые нельзя нарушать, и принятые решения
 
 Образцы в `samples/`: файлы данных от автора формата и шаблоны к ним.
