@@ -7,7 +7,7 @@ namespace ExportMaster.Engine.Jobs;
 /// <summary>
 /// Настройки выходного файла, задаваемые директивами заголовка шаблона.
 /// </summary>
-public sealed class OutputSettings
+public sealed record OutputSettings
 {
     /// <summary>
     /// Десятичный разделитель. По умолчанию точка и намеренно не берётся из локали
@@ -40,6 +40,17 @@ public sealed class OutputSettings
 
     /// <summary>Кодировка выходного файла. По умолчанию UTF-8 без BOM.</summary>
     public Encoding Encoding { get; init; } = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
+    /// <summary>
+    /// Те же настройки, но с точкой в дробных числах.
+    /// </summary>
+    /// <remarks>
+    /// Десятичный разделитель — свойство содержимого отчёта: запятую выбирают под
+    /// Excel заказчика. Имя выходного файла и ключ результирующего файла к отчёту
+    /// не относятся: их разбирают сценарии и программа заказчика, и запятая в них
+    /// только мешает — `meas_V_2,490GHz.csv` неудобно и в списке, и в командной строке.
+    /// </remarks>
+    public OutputSettings ForNames() => this with { DecimalSeparator = "." };
 
     /// <summary>Формат чисел с выбранным десятичным разделителем.</summary>
     public NumberFormatInfo NumberFormat

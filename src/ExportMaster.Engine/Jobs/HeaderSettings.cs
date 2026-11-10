@@ -129,7 +129,8 @@ public sealed class HeaderSettings
 
         // Имя файла собирается короткими заглушками: полная запись поля
         // со скобками и кавычками нечитаема, а кавычки Windows в именах не допускает.
-        var compact = new RenderContext(context.Settings)
+        // Десятичный разделитель в имени всегда точка, какой бы ни был в отчёте.
+        var compact = new RenderContext(context.Settings.ForNames())
         {
             StubAxisLength = context.StubAxisLength,
             CompactStubs = true,

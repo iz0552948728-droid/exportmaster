@@ -97,7 +97,9 @@ public sealed class FormattingService
     {
         var renderer = new TemplateRenderer(resolver);
         var context = new RenderContext(header.Output) { Slice = slice };
-        var key = slice?.Key(new AxisValueFormatter(header.Output))
+        // Ключ разбирает программа заказчика, поэтому в нём, как и в имени файла,
+        // дробные числа всегда с точкой.
+        var key = slice?.Key(new AxisValueFormatter(header.Output.ForNames()))
             ?? string.Join(';', header.GroupBy.Select(axis => $"{axis}=*"));
 
         // Замечания источника значений относятся именно к этому файлу: по ним

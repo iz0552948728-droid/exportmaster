@@ -242,6 +242,31 @@ public class EndToEndTests : IDisposable
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("9999", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void DecimalSeparatorChangesTheReportButNotTheNameOrTheKey()
+    {
+        // Запятую выбирают под Excel заказчика — это свойство содержимого отчёта.
+        // Имя файла и ключ разбирают сценарии и программа заказчика, и запятая
+        // в них только мешает.
+        var result = Run("""
+            [MDHEADER]
+            {FILENAME("m_", {GROUPVALUE("FREQ")}, ".csv")}
+            {GROUPBY("FREQ")}
+            {NEWLINE("LF")}
+            {DECIMAL(",")}
+            [/MDHEADER]
+            {TABLE("BEAM", "DATA", "AMP", "0.00", ";")}
+            """);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("m_20.000GHz.csv", result.Lines[0].File);
+        Assert.Equal("FREQ=20.000GHz", result.Lines[0].Key);
+
+        // А в самом отчёте разделитель тот, что просили.
+        var lines = File.ReadAllLines(Path.Combine(_target, "m_20.000GHz.csv"));
+        Assert.Contains("-86,35", lines[1], StringComparison.Ordinal);
+    }
+
     /// <summary>Шаблон из одного поля: выводится только оно.</summary>
     private static string Header(string field) => $$"""
         [MDHEADER]

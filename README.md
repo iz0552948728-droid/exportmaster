@@ -59,20 +59,28 @@ ExportMaster.Formatter.Cli /source samples/data/aaa-1.5.mtx \
 
 ## Передача пользователю
 
-Тому, кто будет только пользоваться программой, собирают один самодостаточный файл —
-среда исполнения входит внутрь, ставить .NET не нужно:
+На машине пользователя .NET 8 уже установлен, поэтому среду исполнения в сборку
+не включают:
 
-```bash
-dotnet publish src/ExportMaster.Formatter.Cli -c Release -r win-x64 \
-               --self-contained true -p:PublishSingleFile=true -o publish
+```
+dotnet publish src\ExportMaster.Formatter.Cli -c Release -o publish
 ```
 
-В `publish` появится `ExportMaster.Formatter.Cli.exe` (около 67 МБ) и файлы `.pdb` —
-отладочные символы, пользователю не нужны. Вместе с программой передают шаблон
+В Visual Studio то же самое: правая кнопка по проекту `ExportMaster.Formatter.Cli`
+→ «Опубликовать» → профиль «Папка», конфигурация `Release`.
+
+В `publish` получится около 300 КБ: `ExportMaster.Formatter.Cli.exe`, пять библиотек
+и два файла настроек. Передают папку целиком; файлы `.pdb` — отладочные символы,
+пользователю не нужны. Вместе с программой передают шаблон
 и [инструкцию](docs/user-guide.md).
 
-Если на машине уже стоит .NET 8 Runtime, хватит обычной публикации — выйдет около
-300 КБ: `dotnet publish src/ExportMaster.Formatter.Cli -c Release -o publish`.
+Если однажды понадобится машина без .NET, собирают самодостаточный вариант — один
+файл примерно на 67 МБ со средой исполнения внутри:
+
+```
+dotnet publish src\ExportMaster.Formatter.Cli -c Release -r win-x64 ^
+               --self-contained true -p:PublishSingleFile=true -o publish
+```
 
 ## Документация
 
