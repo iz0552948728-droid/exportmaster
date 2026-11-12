@@ -82,6 +82,37 @@ dotnet publish src\ExportMaster.Formatter.Cli -c Release -r win-x64 ^
                --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
+## Выпуск в GitLab
+
+Основной репозиторий проекта — GitLab заказчика. История разработки туда не
+переносится: в GitLab по одному коммиту на выпуск.
+
+Разово:
+
+```powershell
+git remote add gitlab http://192.168.0.9/<группа>/<проект>.git
+```
+
+На каждый выпуск:
+
+```powershell
+.\tools\push-to-gitlab.ps1 -Message "Версия от 12.11.2026" -Tag v1.1
+```
+
+Скрипт берёт дерево текущего `HEAD`, делает из него один коммит поверх последнего
+коммита в GitLab и отправляет. Сколько бы коммитов ни накопилось здесь с прошлого
+раза — там появится один. Рабочие файлы не трогаются.
+
+То же самое вручную, если скрипт почему-то не подходит:
+
+```powershell
+git fetch gitlab main
+$tree   = git rev-parse "HEAD^{tree}"
+$parent = git rev-parse gitlab/main
+$commit = git commit-tree $tree -p $parent -m "Версия от 12.11.2026"
+git push gitlab "${commit}:refs/heads/main"
+```
+
 ## Документация
 
 - [`docs/template-language.md`](docs/template-language.md) — язык шаблона, командная строка, протокол вывода
